@@ -1,0 +1,195 @@
+import { Grid, canvas, rect, px } from './pixel';
+
+// ── 언령사 (플레이어) 16×16 ─────────────────────────────
+export const PLAYER: Grid = [
+  '................',
+  '.....KKKKKK.....',
+  '....KHHHHHHK....',
+  '...KHHHHHHHHK...',
+  '...KHHHHHHHHK...',
+  '...KHSSHHSSHK...',
+  '...KHSSSSSSHK...',
+  '...KHSKSSKSHK...',
+  '...KHSKSSKSHK...',
+  '....KsSSSSsK....',
+  '...KLLLRRLLLK...',
+  '..KSKLLLLLLKSK..',
+  '..KKKRRRRRRKKK..',
+  '...KRRRrrRRRK...',
+  '...KRRK..KRRK...',
+  '....KK....KK....',
+];
+
+// ── 봉인된 두루마리 22×11 ───────────────────────────────
+export const SCROLL_SEALED: Grid = [
+  '......................',
+  '...KKKKKKKKKKKKKKKK...',
+  '...KLLLLLRRRRLLLLLK...',
+  'KKKKWWWWWRRRRWWWWWKKKK',
+  'KbBKWWWWWRRRRWWWWWKBbK',
+  'KbBKWWWWWRGGRWWWWWKBbK',
+  'KbBKwwwwwRGGRwwwwwKBbK',
+  'KbBKwwwwwrRRrwwwwwKBbK',
+  'KKKKwwwwwrrrrwwwwwKKKK',
+  '...KvvvvvrrrrvvvvvK...',
+  '...KKKKKKKKKKKKKKKK...',
+];
+
+// ── 두루마리 받침대 28×12 ──────────────────────────────
+export function stand(): HTMLCanvasElement {
+  const [c, g] = canvas(28, 12);
+  rect(g, 0, 0, 28, 4, 'K');
+  rect(g, 1, 0, 26, 2, 'R');
+  rect(g, 1, 2, 26, 1, 'r');
+  rect(g, 2, 4, 3, 7, 'K');
+  rect(g, 23, 4, 3, 7, 'K');
+  rect(g, 3, 4, 1, 6, 'd');
+  rect(g, 24, 4, 1, 6, 'd');
+  rect(g, 1, 11, 26, 1, 'x');
+  return c;
+}
+
+// ── 펼쳐진 족자 30×44 (글자는 DOM으로 겹쳐 그린다) ─────────
+export const HANG_W = 30;
+export const HANG_H = 44;
+/** 족자 안 한지 영역의 중심 (글자 위치) */
+export const HANG_PAPER_CENTER = { x: 15, y: 20 };
+
+function hangingScrollFull(): HTMLCanvasElement {
+  const W = HANG_W;
+  const [c, g] = canvas(W, HANG_H);
+  // 위 축 + 걸이 끈
+  rect(g, 0, 1, W, 4, 'K');
+  rect(g, 1, 2, W - 2, 2, 'B');
+  rect(g, 1, 2, W - 2, 1, 'b');
+  rect(g, 0, 1, 2, 4, 'd');
+  rect(g, W - 2, 1, 2, 4, 'd');
+  rect(g, 13, 0, 4, 1, 'R');
+  // 표구(남색 테두리) + 한지
+  rect(g, 3, 5, 24, 33, 'K');
+  rect(g, 4, 5, 22, 32, 'n');
+  rect(g, 5, 5, 20, 31, 'N');
+  rect(g, 6, 7, 18, 27, 'W');
+  rect(g, 6, 7, 1, 27, 'L');
+  rect(g, 6, 33, 18, 1, 'w');
+  // 낙관(붉은 도장)
+  rect(g, 19, 28, 3, 3, 'R');
+  px(g, 20, 29, 'r');
+  // 아래 축
+  rect(g, 1, 37, W - 2, 4, 'K');
+  rect(g, 2, 38, W - 4, 2, 'B');
+  rect(g, 2, 38, W - 4, 1, 'b');
+  rect(g, 0, 37, 3, 4, 'd');
+  rect(g, W - 3, 37, 3, 4, 'd');
+  rect(g, 3, 42, W - 6, 1, 'x');
+  return c;
+}
+
+/**
+ * 족자가 펼쳐지는 프레임. reveal 0 = 말려 있음, 1 = 다 펼침.
+ * 위쪽 한지를 reveal 만큼 보여주고, 아래 축을 그 끝에 붙인다.
+ */
+export function hangingScrollFrames(steps = [0, 0.25, 0.5, 0.75, 1]): HTMLCanvasElement[] {
+  const full = hangingScrollFull();
+  const PAPER = 32; // 한지(표구 포함) 높이: y 5 ~ 36
+  const BOTTOM_Y = 37;
+  const BOTTOM_H = HANG_H - BOTTOM_Y;
+  return steps.map((r) => {
+    const ph = Math.round(PAPER * r);
+    const [c, g] = canvas(HANG_W, HANG_H);
+    g.drawImage(full, 0, 0, HANG_W, 5 + ph, 0, 0, HANG_W, 5 + ph);
+    g.drawImage(full, 0, BOTTOM_Y, HANG_W, BOTTOM_H, 0, 5 + ph, HANG_W, BOTTOM_H);
+    return c;
+  });
+}
+
+// ── 금빛 (펼칠 때 뒤에서 퍼지는 빛) 64×64 ────────────────
+export function glow(): HTMLCanvasElement {
+  const [c, g] = canvas(64, 64);
+  const rings: [number, number][] = [[32, 0.1], [24, 0.14], [16, 0.2]];
+  for (const [r, a] of rings) {
+    g.fillStyle = `rgba(240,184,74,${a})`;
+    g.beginPath();
+    g.arc(32, 32, r, 0, Math.PI * 2);
+    g.fill();
+  }
+  return c;
+}
+
+export function spark(): HTMLCanvasElement {
+  const [c, g] = canvas(3, 3);
+  px(g, 1, 0, 'G');
+  px(g, 0, 1, 'G');
+  px(g, 1, 1, 'L');
+  px(g, 2, 1, 'G');
+  px(g, 1, 2, 'G');
+  return c;
+}
+
+// ── 서고 배경 320×180 (카메라 2배 줌으로 640×360을 채운다) ─────
+export const LIB_W = 320;
+export const LIB_H = 180;
+export const LIB_FLOOR_Y = 84;
+
+export function libraryBackground(hookXs: number[], hookY: number): HTMLCanvasElement {
+  const [c, g] = canvas(LIB_W, LIB_H);
+
+  // 벽
+  rect(g, 0, 0, LIB_W, LIB_FLOOR_Y, 'N');
+  rect(g, 0, 0, LIB_W, 8, 'n');
+  for (let x = 0; x < LIB_W; x += 8) rect(g, x, 8, 1, LIB_FLOOR_Y - 8, 'n');
+  // 나게시(장식 들보)
+  rect(g, 0, 12, LIB_W, 5, 'K');
+  rect(g, 0, 13, LIB_W, 3, 'B');
+  rect(g, 0, 13, LIB_W, 1, 'b');
+  // 기둥
+  for (const x of [0, 38, 278, 314]) {
+    rect(g, x, 0, 6, LIB_FLOOR_Y, 'K');
+    rect(g, x + 1, 0, 4, LIB_FLOOR_Y, 'B');
+    rect(g, x + 1, 0, 1, LIB_FLOOR_Y, 'b');
+  }
+
+  // 양쪽 책장
+  for (const sx of [6, 284]) {
+    rect(g, sx, 20, 32, 64, 'd');
+    rect(g, sx + 1, 21, 30, 62, 'K');
+    for (let s = 0; s < 4; s++) {
+      const sy = 22 + s * 15;
+      rect(g, sx + 1, sy + 13, 30, 2, 'B');
+      for (let k = 0; k < 5; k++) {
+        const kx = sx + 3 + k * 6;
+        const tone = (k + s + sx) % 3 ? 'w' : 'v';
+        rect(g, kx, sy + 3, 4, 10, tone);
+        rect(g, kx, sy + 6, 4, 1, 'r');
+      }
+    }
+  }
+
+  // 족자 걸이(금 고리)
+  for (const x of hookXs) {
+    rect(g, x - 1, hookY - 2, 2, 2, 'g');
+    px(g, x - 1, hookY - 2, 'G');
+  }
+
+  // 걸레받이
+  rect(g, 0, LIB_FLOOR_Y - 2, LIB_W, 2, 'K');
+
+  // 마루
+  rect(g, 0, LIB_FLOOR_Y, LIB_W, LIB_H - LIB_FLOOR_Y, 'B');
+  for (let y = LIB_FLOOR_Y, o = 0; y < LIB_H; y += 8, o = (o + 29) % 48) {
+    rect(g, 0, y, LIB_W, 1, 'd');
+    rect(g, 0, y + 1, LIB_W, 1, 'b');
+    for (let x = o; x < LIB_W; x += 48) rect(g, x, y, 1, 8, 'd');
+  }
+  // 벽 아래 그림자
+  g.fillStyle = 'rgba(0,0,0,0.25)';
+  g.fillRect(0, LIB_FLOOR_Y, LIB_W, 3);
+
+  // 중앙 붉은 깔개
+  rect(g, 136, 130, 48, 50, 'r');
+  rect(g, 138, 130, 44, 50, 'R');
+  for (let y = 134; y < LIB_H; y += 6) rect(g, 140, y, 40, 1, 'r');
+
+  return c;
+}
+

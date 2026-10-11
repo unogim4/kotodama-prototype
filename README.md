@@ -4,6 +4,22 @@
 학습(서고) → 복습(전투) → 시험(보스)으로 구성된 던전을 돌파하며 일본어를 익힌다.
 
 - 참고 게임: Hades, Vampire Survivors
-- 현재 단계: 기획 / 챕터 1 프로토타입(히라가나 あ행) 설계 중
+- 현재 단계: 챕터 1 프로토타입(히라가나 あ행) 제작 중 — 서고 완료
 - 기획 문서: [기획서.md](기획서.md)
 - 제작도 (진행 현황 트리): [제작도.md](제작도.md)
+
+## 실행 방법
+
+```bash
+npm install
+npm run dev
+```
+
+브라우저에서 http://localhost:5173 을 연다.
+일본어 음성(TTS)은 **Edge**(Nanami 음성) 또는 **Chrome**(Google 日本語)에서 가장 잘 나온다.
+
+## 기술 스택
+
+- Phaser 3 + TypeScript + Vite
+- 도트는 코드로 찍어 런타임에 텍스처로 생성 (`src/art`)
+- 학습 글자: Klee One(교과서체), UI: Galmuri — 모두 OFL 라이선스
