@@ -13,7 +13,14 @@ import { tts } from '../systems/tts';
 
 const ZOOM = 2;
 const ROOMS = 3;
-const KILL_TARGETS = [30, 40, 50];
+/** 한 습격을 버텨야 하는 시간 */
+const ROOM_MS = 45_000;
+/** 습격 단계별 요괴 밀도: 처음 출현 간격(ms) · 동시에 있을 수 있는 최대 수 */
+const ROOM_SPAWN = [
+  { interval: 950, cap: 28 },
+  { interval: 700, cap: 42 },
+  { interval: 500, cap: 58 },
+];
 const PLAYER_SPEED = 80;
 const BOUNDS = { minX: 8, maxX: ARENA_W - 8, minY: ARENA_WALL_Y + 12, maxY: ARENA_H - 4 };
 /** 결계가 풀린 토리이 안으로 이만큼 올라가면 다음 방 */
@@ -73,7 +80,8 @@ export class RaidScene extends Phaser.Scene {
   private orbAngle = 0;
   private barrier!: Phaser.GameObjects.Rectangle;
   private kills = 0;
-  private target = 30;
+  /** 이번 습격에서 버틴 시간 (레벨업으로 멈춘 시간은 빼고) */
+  private elapsed = 0;
   private spawnAcc = 0;
   private weaponAcc = 0;
   private invulnUntil = 0;
@@ -106,7 +114,7 @@ export class RaidScene extends Phaser.Scene {
     this.invulnUntil = 0;
     this.pendingLevels = 0;
     this.hudCache = '';
-    this.target = KILL_TARGETS[run.room - 1] ?? 50;
+    this.elapsed = 0;
 
     if (!this.textures.exists(BG_KEY)) this.textures.addCanvas(BG_KEY, arenaBackground());
     this.add.image(0, 0, BG_KEY).setOrigin(0);
@@ -132,7 +140,7 @@ export class RaidScene extends Phaser.Scene {
     void tts.isAvailable().then((ok) => (this.ttsOk = ok));
 
     const banner = this.ui.el('div', 'raid-banner');
-    banner.innerHTML = `<b>습격 ${run.room}</b><span>요괴 ${this.target}마리를 물리쳐라</span>`;
+    banner.innerHTML = `<b>습격 ${run.room}</b><span>${ROOM_MS / 1000}초 동안 버텨라</span>`;
     this.time.delayedCall(2200, () => banner.remove());
   }
 
@@ -154,14 +162,16 @@ export class RaidScene extends Phaser.Scene {
 
   private updateHud(): void {
     const b = run.build;
-    const key = `${Math.ceil(run.hp)}|${b.maxHp}|${run.xp}|${run.level}|${this.kills}`;
+    const left = Math.max(0, Math.ceil((ROOM_MS - this.elapsed) / 1000));
+    const key = `${Math.ceil(run.hp)}|${b.maxHp}|${run.xp}|${run.level}|${this.kills}|${left}`;
     if (key === this.hudCache) return;
     this.hudCache = key;
     this.hud.hp.style.width = `${Math.max(0, (run.hp / b.maxHp) * 100)}%`;
     this.hud.hpText.textContent = `${Math.max(0, Math.ceil(run.hp))} / ${b.maxHp}`;
     this.hud.xp.style.width = `${(run.xp / xpNeed(run.level)) * 100}%`;
     this.hud.lv.textContent = `Lv ${run.level}`;
-    this.hud.kills.innerHTML = `요괴 <b>${Math.min(this.kills, this.target)}</b> / ${this.target}`;
+    const clock = `${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`;
+    this.hud.kills.innerHTML = `<span class="raid-clock${left <= 10 && this.state === 'play' ? ' hurry' : ''}">⏳ ${clock}</span><small>처치 ${this.kills}</small>`;
   }
 
   // ── 매 프레임 ─────────────────────────────────────────
@@ -171,6 +181,10 @@ export class RaidScene extends Phaser.Scene {
     const dt = Math.min(rawDelta, 50);
 
     this.movePlayer(time, dt);
+    if (this.state === 'play') {
+      this.elapsed += dt;
+      if (this.elapsed >= ROOM_MS) this.clearRoom();
+    }
     if (this.state === 'play') {
       this.spawn(dt);
       this.fireWeapon(dt);
@@ -210,17 +224,20 @@ export class RaidScene extends Phaser.Scene {
   // ── 요괴 ─────────────────────────────────────────────
 
   private spawn(dt: number): void {
-    const interval = Math.max(280, 1000 - this.kills * 12 - (run.room - 1) * 150);
-    const cap = 30 + run.room * 15;
+    // 단계가 높을수록 촘촘하고, 한 습격 안에서도 시간이 갈수록 35%까지 빨라진다
+    const cfg = ROOM_SPAWN[Math.min(run.room, ROOM_SPAWN.length) - 1];
+    const progress = Math.min(1, this.elapsed / ROOM_MS);
+    const interval = cfg.interval * (1 - progress * 0.35);
+    const cap = cfg.cap;
     this.spawnAcc += dt;
     while (this.spawnAcc >= interval) {
       this.spawnAcc -= interval;
-      if (this.enemies.length < cap && this.kills + this.enemies.length < this.target + 15) this.spawnEnemy();
+      if (this.enemies.length < cap) this.spawnEnemy();
     }
   }
 
   private spawnEnemy(): void {
-    const kasaChance = 0.15 + (run.room - 1) * 0.1 + (this.kills > this.target / 2 ? 0.1 : 0);
+    const kasaChance = 0.15 + (run.room - 1) * 0.1 + (this.elapsed > ROOM_MS / 2 ? 0.1 : 0);
     const kind: EnemyKind = Math.random() < kasaChance ? 'kasa' : 'hitodama';
     const def = ENEMY_DEFS[kind];
     // 화면 밖(언령사에서 충분히 먼 곳)에서 나타난다
@@ -320,7 +337,6 @@ export class RaidScene extends Phaser.Scene {
     if (drop) {
       this.dropGem(e.sprite.x, e.sprite.y);
       this.kills++;
-      if (this.kills >= this.target && this.state === 'play') this.clearRoom();
     }
     e.sprite.destroy();
   }

@@ -191,3 +191,7 @@ button.ucard:hover { border-color: var(--gold); background: #33417a; }
 .lvl-panel.picking .lvl-question { display: none; }
 .lvl-panel.picking .lvl-head small { display: none; }
 .panel .wrong-chip b { color: var(--ink); }
+.raid-kills { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+.raid-clock { font-family: Galmuri14, sans-serif; font-size: 15px; color: var(--gold); }
+.raid-clock.hurry { color: #ffb4a6; }
+.raid-kills small { font-family: Galmuri9, sans-serif; font-size: 10px; opacity: .8; }
