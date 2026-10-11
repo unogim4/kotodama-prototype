@@ -290,3 +290,13 @@ button.ucard:hover { border-color: var(--gold); background: #33417a; }
 .title-foot { left: 0; right: 0; bottom: 8px; text-align: center; font-family: Galmuri9, sans-serif; font-size: 10px; opacity: .7; }
 .title-foot b { color: var(--gold); font-weight: normal; }
 .reveal-caption small { display: block; margin-top: 4px; font-family: Galmuri9, sans-serif; font-size: 10px; color: var(--gold); }
+
+/* ── 전투 샘플 ── */
+.sb-title { left: 10px; top: 8px; font-family: Galmuri14, sans-serif; font-size: 15px; color: var(--gold); text-shadow: 1px 1px 0 var(--ink); }
+.sb-title small { font-family: Galmuri9, sans-serif; font-size: 10px; color: var(--text); margin-left: 4px; }
+.sb-legend { left: 10px; top: 30px; font-family: Galmuri9, sans-serif; font-size: 10px; line-height: 1.6; background: rgba(27,22,38,.7);
+             padding: 4px 7px; border: 1px solid #3b4f8f; }
+.sb-legend b { color: var(--gold); font-weight: normal; }
+.sb-legend .gold { color: var(--gold); }
+.sb-back { right: 10px; top: 8px; }
+.title-sample { left: 10px; bottom: 6px; }

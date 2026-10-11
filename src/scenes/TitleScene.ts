@@ -55,6 +55,8 @@ export class TitleScene extends Phaser.Scene {
     });
 
     ui.el('div', 'title-foot', '카드를 눌러 시작 · <b>F2</b> 사용자 설정');
+    const sample = ui.button('🧪 전투 샘플 (리마스터)', () => this.scene.start('Sandbox'), 'small');
+    sample.classList.add('title-sample');
   }
 
   private startChapter(i: number): void {
