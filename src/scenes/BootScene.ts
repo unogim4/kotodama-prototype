@@ -10,7 +10,7 @@ export class BootScene extends Phaser.Scene {
   create(): void {
     registerTextures(this);
 
-    const fonts = ['16px Galmuri11', '16px Galmuri14', '600 16px "Klee One"'];
+    const fonts = ['10px Galmuri9', '12px Galmuri11', '15px Galmuri14', '600 16px "Klee One"'];
     Promise.all(fonts.map((f) => document.fonts.load(f, 'あ가')))
       .catch(() => undefined)
       .then(() => this.scene.start('Library'));

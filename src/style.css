@@ -22,7 +22,7 @@ html, body { margin: 0; height: 100%; background: #0c0a12; overflow: hidden; }
 #ui {
   position: absolute; left: 0; top: 0; width: 640px; height: 360px;
   transform-origin: 0 0; pointer-events: none; z-index: 2;
-  font-family: Galmuri11, sans-serif; color: var(--text);
+  font-family: Galmuri11, sans-serif; font-size: 12px; color: var(--text);
   -webkit-font-smoothing: none;
 }
 .scene-ui { position: absolute; inset: 0; }
@@ -35,30 +35,30 @@ html, body { margin: 0; height: 100%; background: #0c0a12; overflow: hidden; }
 
 /* ── HUD ── */
 .hud-title { left: 12px; top: 10px; font-size: 12px; text-shadow: 1px 1px 0 var(--ink); }
-.hud-progress { right: 12px; top: 8px; display: flex; gap: 4px; align-items: center; font-size: 11px; text-shadow: 1px 1px 0 var(--ink); }
+.hud-progress { right: 12px; top: 8px; display: flex; gap: 4px; align-items: center; font-size: 12px; text-shadow: 1px 1px 0 var(--ink); }
 .pip { width: 18px; height: 18px; border: 1px solid var(--ink); background: #3b4f8f; display: flex;
        align-items: center; justify-content: center; font-family: 'Klee One', serif; font-weight: 600;
        font-size: 13px; color: var(--ink); }
 .pip.on { background: var(--paper); box-shadow: inset 0 -2px 0 #d6c08e; }
-.hint { left: 0; right: 0; bottom: 10px; text-align: center; font-size: 11px; text-shadow: 1px 1px 0 var(--ink);
+.hint { left: 0; right: 0; bottom: 10px; text-align: center; font-size: 12px; text-shadow: 1px 1px 0 var(--ink);
         transition: opacity .4s; }
-.tooltip { font-size: 10px; background: var(--ink); padding: 2px 5px; transform: translate(-50%, 0);
+.tooltip { font-family: Galmuri9, sans-serif; font-size: 10px; background: var(--ink); padding: 2px 5px; transform: translate(-50%, 0);
            white-space: nowrap; border: 1px solid #3b4f8f; }
 
 /* ── 펼침 화면 ── */
-.reveal-caption { left: 0; right: 0; top: 262px; text-align: center; font-size: 14px;
+.reveal-caption { left: 0; right: 0; top: 262px; text-align: center; font-family: Galmuri14, sans-serif; font-size: 15px;
                   text-shadow: 1px 1px 0 var(--ink); opacity: 0; transition: opacity .3s; }
 .reveal-caption b { color: var(--gold); font-weight: normal; }
 .reveal-buttons { left: 0; right: 0; top: 292px; display: flex; gap: 8px; justify-content: center;
                   opacity: 0; transition: opacity .3s; }
-.btn { pointer-events: auto; cursor: pointer; font-family: Galmuri11, sans-serif; font-size: 11px;
+.btn { pointer-events: auto; cursor: pointer; font-family: Galmuri11, sans-serif; font-size: 12px;
        color: var(--text); background: var(--navy); border: 1px solid var(--ink);
        box-shadow: inset 0 -2px 0 #1b2447, 0 0 0 1px #3b4f8f; padding: 4px 10px; }
 .btn:hover { background: #3b4f8f; }
 .btn.primary { background: #8f2a20; box-shadow: inset 0 -2px 0 #5e1b14, 0 0 0 1px var(--vermilion); }
 .btn.primary:hover { background: var(--vermilion); }
 .btn small { opacity: .6; margin-left: 4px; }
-.notice { left: 0; right: 0; top: 248px; text-align: center; font-size: 10px; color: var(--gold); }
+.notice { left: 0; right: 0; top: 248px; text-align: center; font-family: Galmuri9, sans-serif; font-size: 10px; color: var(--gold); }
 
 .wall-glyph { opacity: 0; transition: opacity .25s; }
 .wall-glyph.shown { opacity: 1; }
@@ -70,10 +70,38 @@ html, body { margin: 0; height: 100%; background: #0c0a12; overflow: hidden; }
 .panel { left: 50%; top: 50%; transform: translate(-50%, -50%); background: var(--ink);
          border: 1px solid #3b4f8f; box-shadow: 0 0 0 1px var(--ink), 0 0 0 2px var(--gold);
          padding: 14px 20px; text-align: center; min-width: 240px; }
-.panel h2 { margin: 0 0 6px; font-family: Galmuri14, sans-serif; font-weight: normal; font-size: 16px; color: var(--gold); }
-.panel p { margin: 0 0 12px; font-size: 11px; line-height: 1.6; }
+.panel h2 { margin: 0 0 6px; font-family: Galmuri14, sans-serif; font-weight: normal; font-size: 15px; color: var(--gold); }
+.panel p { margin: 0 0 12px; font-size: 12px; line-height: 1.6; }
 .panel .row { display: flex; gap: 6px; justify-content: center; margin-bottom: 12px; }
 .panel .kana { font-family: 'Klee One', serif; font-weight: 600; font-size: 22px; color: var(--ink);
                background: var(--paper); width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; }
 .fade-in { animation: fadeIn .35s ease-out both; }
 @keyframes fadeIn { from { opacity: 0; transform: translate(-50%, -46%); } to { opacity: 1; transform: translate(-50%, -50%); } }
+
+/* ── 무기 선택 ── */
+.ws-title { left: 0; right: 0; top: 12px; text-align: center; font-family: Galmuri14, sans-serif;
+            font-size: 15px; color: var(--gold); text-shadow: 1px 1px 0 var(--ink); }
+.ws-sub { left: 0; right: 0; top: 33px; text-align: center; font-family: Galmuri9, sans-serif; font-size: 10px; opacity: .75; }
+.wcard { width: 180px; height: 266px; border: 1px solid #3b4f8f; box-shadow: 0 0 0 1px var(--ink);
+         transition: box-shadow .15s, border-color .15s, opacity .25s; }
+.wcard > * { position: absolute; }
+.wcard:hover { border-color: #8fa0d8; }
+.wcard.selected { border-color: var(--gold); box-shadow: 0 0 0 1px var(--ink), 0 0 0 3px rgba(240,184,74,.35); }
+.wcard.chosen { border-color: #fffaf0; box-shadow: 0 0 0 1px var(--ink), 0 0 12px 4px rgba(240,184,74,.6); }
+.wcard.faded { opacity: .25; }
+.wname { left: 46px; top: 8px; font-family: Galmuri14, sans-serif; font-size: 15px; }
+.wjp { left: 46px; top: 26px; font-family: Galmuri9, sans-serif; font-size: 10px; opacity: .7; }
+.jp { font-family: 'Klee One', serif; font-weight: 600; }
+.wtag { right: 8px; top: 9px; font-family: Galmuri9, sans-serif; font-size: 10px; background: var(--navy); border: 1px solid #3b4f8f; padding: 1px 4px; }
+.wdesc { left: 10px; right: 10px; top: 150px; font-family: Galmuri9, sans-serif; font-size: 10px; line-height: 1.6; }
+.wstats { left: 10px; right: 10px; top: 190px; display: flex; flex-direction: column; gap: 4px; }
+.wstat { display: flex; align-items: center; font-family: Galmuri9, sans-serif; font-size: 10px; }
+.wstat span { width: 44px; opacity: .8; }
+.wbar { display: flex; gap: 2px; }
+.wbar i { width: 14px; height: 6px; background: #26335f; border: 1px solid var(--ink); }
+.wbar i.on { background: var(--gold); }
+.wkey { left: 0; right: 0; bottom: 8px; text-align: center; font-family: Galmuri9, sans-serif; font-size: 10px; opacity: .5; }
+.wcard.selected .wkey { opacity: 1; color: var(--gold); }
+.ws-go { left: 50%; top: 328px; transform: translateX(-50%); }
+.btn:disabled { opacity: .45; cursor: default; filter: grayscale(.6); }
+.panel b { color: var(--gold); font-weight: normal; }

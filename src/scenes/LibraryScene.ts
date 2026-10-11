@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { ROW_A, Kana } from '../data/kana';
 import { tts } from '../systems/tts';
+import { run } from '../systems/run';
 import { UILayer } from '../ui/UILayer';
 import { TEX, HANG_FRAME_COUNT } from '../art/textures';
 import { libraryBackground, LIB_W, LIB_H, HANG_W, HANG_H, HANG_PAPER_CENTER } from '../art/sprites';
@@ -261,6 +262,7 @@ export class LibraryScene extends Phaser.Scene {
 
     if (!this.completed && this.slots.every((s) => s.opened)) {
       this.completed = true;
+      run.learned = this.slots.map((sl) => sl.kana.kana);
       this.time.delayedCall(450, () => this.showComplete());
     }
   }

@@ -193,3 +193,103 @@ export function libraryBackground(hookXs: number[], hookY: number): HTMLCanvasEl
   return c;
 }
 
+
+// ── 무기 아이콘 16×16 ──────────────────────────────────
+export const ICON_OFUDA: Grid = [
+  '................',
+  '.....KKKKKK.....',
+  '.....KLLLLK.....',
+  '.....KWRRWK.....',
+  '.....KWWWWK.....',
+  '.....KWRRWK.....',
+  '.....KWWRWK.....',
+  '.....KWRRWK.....',
+  '.....KWRWWK.....',
+  '.....KWRRWK.....',
+  '.....KWWWWK.....',
+  '.....KWGGWK.....',
+  '.....KWGGWK.....',
+  '.....KwwwwK.....',
+  '.....KKKKKK.....',
+  '................',
+];
+
+export const ICON_SUZU: Grid = [
+  '......RRRR......',
+  '......R..R......',
+  '.....KKKKKK.....',
+  '...KKGGGGGGKK...',
+  '..KGGLLGGGGGgK..',
+  '.KGGLGGGGGGGGgK.',
+  '.KGGGGGGGGGGGgK.',
+  '.KGGGGGGGGGGGgK.',
+  '.KgGGGGGGGGGggK.',
+  '.KgKKKKKKKKKKgK.',
+  '.KggGGGGGGGgggK.',
+  '..KggggggggggK..',
+  '...KKggggggKK...',
+  '.....KKKKKK.....',
+  '................',
+  '................',
+];
+
+export const ICON_KITSUNEBI: Grid = [
+  '........K.......',
+  '.......KCK......',
+  '......KCCK......',
+  '......KCLCK.....',
+  '.....KCLLCK.....',
+  '....KCCLLCCK....',
+  '...KcCLLLLCCK...',
+  '...KcCLLLLLCK...',
+  '..KccCLLLLLCcK..',
+  '..KcCCLLLLCCcK..',
+  '..KccCCLLCCccK..',
+  '...KccCCCCccK...',
+  '....KKccccKK....',
+  '......KKKK......',
+  '................',
+  '................',
+];
+
+// ── 무기 투사체 ───────────────────────────────────────
+export const SHOT_OFUDA: Grid = [
+  'KKKKK',
+  'KWRWK',
+  'KWWWK',
+  'KWRWK',
+  'KWRWK',
+  'KWWWK',
+  'KKKKK',
+];
+
+export const ORB_KITSUNEBI: Grid = [
+  '...KK...',
+  '..KCCK..',
+  '.KCLLCK.',
+  'KCLLLLCK',
+  'KCLLLLCK',
+  '.KcCCcK.',
+  '..KccK..',
+  '...KK...',
+];
+
+// ── 허수아비 (무기 미리보기용 과녁) 16×16 ──────────────────
+export const DUMMY: Grid = [
+  '................',
+  '......KKKK......',
+  '.....KGGGgK.....',
+  '.....KGgGgK.....',
+  '.....KrrrrK.....',
+  '.....KGGGgK.....',
+  '.....KGgGgK.....',
+  '.....KGGGgK.....',
+  '.....KrrrrK.....',
+  '.....KGgGgK.....',
+  '.....KGGGgK.....',
+  '......KddK......',
+  '......KBdK......',
+  '......KBdK......',
+  '....KKKKKKKK....',
+  '....xxxxxxxx....',
+];

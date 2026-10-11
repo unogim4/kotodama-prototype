@@ -1,6 +1,9 @@
 import Phaser from 'phaser';
 import { gridCanvas } from './pixel';
-import { PLAYER, SCROLL_SEALED, stand, hangingScrollFrames, glow, spark } from './sprites';
+import {
+  PLAYER, SCROLL_SEALED, stand, hangingScrollFrames, glow, spark,
+  ICON_OFUDA, ICON_SUZU, ICON_KITSUNEBI, SHOT_OFUDA, ORB_KITSUNEBI, DUMMY,
+} from './sprites';
 
 export const TEX = {
   player: 'player',
@@ -9,6 +12,10 @@ export const TEX = {
   hang: (i: number) => `scroll-hang-${i}`,
   glow: 'glow',
   spark: 'spark',
+  icon: (id: string) => `icon-${id}`,
+  shotOfuda: 'shot-ofuda',
+  orbKitsunebi: 'orb-kitsunebi',
+  dummy: 'dummy',
 } as const;
 
 export const HANG_FRAME_COUNT = 5;
@@ -26,4 +33,10 @@ export function registerTextures(scene: Phaser.Scene): void {
   hangingScrollFrames().forEach((c, i) => add(scene, TEX.hang(i), c));
   add(scene, TEX.glow, glow());
   add(scene, TEX.spark, spark());
+  add(scene, TEX.icon('ofuda'), gridCanvas(ICON_OFUDA));
+  add(scene, TEX.icon('suzu'), gridCanvas(ICON_SUZU));
+  add(scene, TEX.icon('kitsunebi'), gridCanvas(ICON_KITSUNEBI));
+  add(scene, TEX.shotOfuda, gridCanvas(SHOT_OFUDA));
+  add(scene, TEX.orbKitsunebi, gridCanvas(ORB_KITSUNEBI));
+  add(scene, TEX.dummy, gridCanvas(DUMMY));
 }

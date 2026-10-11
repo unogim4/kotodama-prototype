@@ -4,6 +4,7 @@ import { GAME_W, GAME_H, fitStage } from './stage';
 import { BootScene } from './scenes/BootScene';
 import { LibraryScene } from './scenes/LibraryScene';
 import { WeaponSelectScene } from './scenes/WeaponSelectScene';
+import { RaidScene } from './scenes/RaidScene';
 
 const game = new Phaser.Game({
   type: Phaser.AUTO,
@@ -14,7 +15,7 @@ const game = new Phaser.Game({
   pixelArt: true,
   roundPixels: true,
   scale: { mode: Phaser.Scale.NONE, autoCenter: Phaser.Scale.NO_CENTER },
-  scene: [BootScene, LibraryScene, WeaponSelectScene],
+  scene: [BootScene, LibraryScene, WeaponSelectScene, RaidScene],
 });
 
 fitStage(game);
