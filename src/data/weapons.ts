@@ -37,7 +37,7 @@ export const WEAPONS: WeaponDef[] = [
     tag: '범위',
     desc: '맑은 방울 소리가 퍼져<br>주변 요괴를 한꺼번에 친다.',
     stats: { power: 2, speed: 2, reach: 3 },
-    base: { damage: 6, cooldownMs: 1100, range: 48 },
+    base: { damage: 7, cooldownMs: 1000, range: 48 },
   },
   {
     id: 'kitsunebi',
@@ -47,7 +47,7 @@ export const WEAPONS: WeaponDef[] = [
     tag: '근접 회전',
     desc: '푸른 여우불이 몸 주위를 돌며<br>닿는 요괴를 태운다.',
     stats: { power: 4, speed: 4, reach: 1 },
-    base: { damage: 8, cooldownMs: 300, range: 30 },
+    base: { damage: 10, cooldownMs: 350, range: 24 },
   },
 ];
 

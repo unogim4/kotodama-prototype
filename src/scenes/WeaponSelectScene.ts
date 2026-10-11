@@ -3,7 +3,7 @@ import { UILayer } from '../ui/UILayer';
 import { WeaponPreview } from '../ui/WeaponPreview';
 import { WEAPONS, STAT_LABELS, WeaponDef } from '../data/weapons';
 import { TEX } from '../art/textures';
-import { run } from '../systems/run';
+import { run, resetRaid } from '../systems/run';
 import { withRo, withEul } from '../util/korean';
 
 const CARD_W = 180;
@@ -120,6 +120,7 @@ export class WeaponSelectScene extends Phaser.Scene {
     if (!card || this.confirmed) return;
     this.confirmed = true;
     run.weapon = card.def.id;
+    resetRaid();
     this.goButton.disabled = true;
 
     // 카드는 모두 물러나고, 고른 무기 아이콘이 가운데로 날아와 커진다

@@ -127,3 +127,67 @@ html, body { margin: 0; height: 100%; background: #0c0a12; overflow: hidden; }
 .raid-end b { color: var(--gold); font-weight: normal; }
 .raid-end .row { display: flex; gap: 8px; justify-content: center; }
 .hint b { color: var(--gold); font-weight: normal; }
+
+/* ── 습격 HUD ── */
+.raid-hud-left { left: 10px; top: 14px; display: flex; flex-direction: column; gap: 4px; }
+.raid-room { font-size: 12px; text-shadow: 1px 1px 0 var(--ink); }
+.bar { position: relative; background: var(--ink); border: 1px solid var(--ink); box-shadow: 0 0 0 1px #3b4f8f; }
+.bar i { position: absolute; left: 0; top: 0; bottom: 0; transition: width .15s; }
+.bar.hp { width: 120px; height: 12px; }
+.bar.hp i { background: var(--vermilion); box-shadow: inset 0 -3px 0 #8f2a20; }
+.bar.hp span { position: absolute; inset: 0; text-align: center; font-family: Galmuri9, sans-serif; font-size: 10px; line-height: 11px; text-shadow: 1px 1px 0 var(--ink); }
+.raid-xp { left: 0; right: 0; top: 0; height: 5px; box-shadow: none; }
+.raid-xp i { background: var(--gold); }
+.raid-lv { left: 50%; top: 8px; transform: translateX(-50%); font-family: Galmuri14, sans-serif; font-size: 15px; color: var(--gold); text-shadow: 1px 1px 0 var(--ink); }
+.raid-kills { right: 12px; top: 14px; font-size: 12px; text-shadow: 1px 1px 0 var(--ink); }
+.raid-kills b { color: var(--gold); font-weight: normal; }
+.raid-banner { left: 0; right: 0; top: 112px; text-align: center; text-shadow: 1px 1px 0 var(--ink), 0 0 8px var(--ink);
+               animation: banner 2.2s ease-out both; pointer-events: none; }
+.raid-banner b { display: block; font-family: Galmuri14, sans-serif; font-size: 15px; color: var(--gold); font-weight: normal; margin-bottom: 4px; }
+.raid-banner span { font-size: 12px; }
+.raid-banner em { color: var(--gold); font-style: normal; }
+@keyframes banner { 0% { opacity: 0; } 12% { opacity: 1; } 80% { opacity: 1; } 100% { opacity: 0; } }
+
+/* ── 레벨업 퀴즈 ── */
+.lvl-panel { left: 50%; top: 50%; transform: translate(-50%, -50%); width: 440px; background: var(--ink);
+             border: 1px solid #3b4f8f; box-shadow: 0 0 0 1px var(--ink), 0 0 0 2px var(--gold); padding: 12px 16px 14px; text-align: center; }
+.lvl-head { font-family: Galmuri14, sans-serif; font-size: 15px; margin-bottom: 8px; }
+.lvl-head b { color: var(--gold); font-weight: normal; }
+.lvl-head small { display: block; font-family: Galmuri9, sans-serif; font-size: 10px; opacity: .65; margin-top: 2px; }
+.lvl-question { display: flex; flex-direction: column; align-items: center; gap: 4px; margin-bottom: 10px; }
+.lvl-sound { font-size: 22px; width: 54px; height: 54px; border-radius: 50%; padding: 0; }
+.lvl-kana { font-family: 'Klee One', serif; font-weight: 600; font-size: 54px; line-height: 1; color: var(--ink);
+            background: var(--paper); width: 76px; height: 76px; display: flex; align-items: center; justify-content: center; }
+.lvl-ask { font-size: 12px; }
+.lvl-ask small { font-family: Galmuri9, sans-serif; font-size: 10px; opacity: .6; margin-left: 4px; }
+.lvl-choices { display: flex; gap: 6px; justify-content: center; }
+.qchoice { position: relative; width: 56px; height: 46px; padding: 0; font-size: 15px; font-family: Galmuri14, sans-serif; }
+.qchoice .jp { font-size: 26px; }
+.qchoice small { position: absolute; right: 3px; bottom: 1px; font-family: Galmuri9, sans-serif; font-size: 10px; opacity: .5; margin: 0; }
+.qchoice.correct { background: #2f6b45; box-shadow: inset 0 -2px 0 #1d4a2e, 0 0 0 1px #7fd49a; opacity: 1; filter: none; }
+.qchoice.wrong { background: #8f2a20; box-shadow: inset 0 -2px 0 #5e1b14, 0 0 0 1px var(--vermilion); opacity: 1; filter: none; }
+.lvl-result { min-height: 18px; margin: 8px 0 2px; font-size: 12px; }
+.lvl-result.ok { color: #9be3b0; }
+.lvl-result.ng { color: #ffb4a6; }
+.lvl-result .jp { font-size: 16px; color: var(--text); }
+.lvl-result b { color: var(--gold); font-weight: normal; }
+.lvl-upgrades { display: flex; gap: 8px; justify-content: center; margin-top: 6px; }
+.ucard { position: relative; width: 128px; min-height: 84px; padding: 8px 6px; background: var(--navy); border: 1px solid #3b4f8f;
+         color: var(--text); font-family: Galmuri11, sans-serif; display: flex; flex-direction: column; align-items: center; gap: 3px; }
+button.ucard:hover { border-color: var(--gold); background: #33417a; }
+.ucard .uicon { font-size: 18px; }
+.ucard b { font-weight: normal; font-size: 12px; color: var(--gold); }
+.ucard span { font-family: Galmuri9, sans-serif; font-size: 10px; line-height: 1.4; }
+.ucard small { font-family: Galmuri9, sans-serif; font-size: 10px; opacity: .55; }
+.ucard.given { border-color: var(--gold); }
+.lvl-continue { margin-top: 10px; }
+
+/* ── 패배 ── */
+.wrong-chip { pointer-events: auto; cursor: pointer; background: var(--paper); color: var(--ink); width: 44px; padding: 3px 0;
+              display: flex; flex-direction: column; align-items: center; }
+.wrong-chip .kana { font-family: 'Klee One', serif; font-weight: 600; font-size: 22px; line-height: 1.1; }
+.wrong-chip b { font-weight: normal; font-size: 12px; }
+.wrong-chip small { font-family: Galmuri9, sans-serif; font-size: 10px; color: #8f2a20; }
+.lvl-panel.picking .lvl-question { display: none; }
+.lvl-panel.picking .lvl-head small { display: none; }
+.panel .wrong-chip b { color: var(--ink); }

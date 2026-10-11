@@ -349,3 +349,162 @@ export function doorSeal(): HTMLCanvasElement {
   rect(g, 17, 14, 1, 2, 'R');
   return c;
 }
+
+// ── 요괴: 히토다마(人魂) 16×16, 2프레임 ──────────────────
+export const HITODAMA: Grid[] = [
+  [
+    '................',
+    '.........p......',
+    '........pP......',
+    '.......pPLp.....',
+    '......pPLLPp....',
+    '.....pPLLLLPp...',
+    '....pPLLLLLLPp..',
+    '...pPLLLLLLLLPp.',
+    '...pPLKKLLKKLPp.',
+    '...pPLKKLLKKLPp.',
+    '...pPLLLLLLLLPp.',
+    '....pPLLLLLLPp..',
+    '.....pPPLLPPp...',
+    '......ppPPpp....',
+    '................',
+    '................',
+  ],
+  [
+    '................',
+    '.......p........',
+    '.......Pp.......',
+    '......pLPp......',
+    '.....pPLLPp.....',
+    '.....pPLLLLPp...',
+    '....pPLLLLLLPp..',
+    '...pPLLLLLLLLPp.',
+    '...pPLKKLLKKLPp.',
+    '...pPLKKLLKKLPp.',
+    '...pPLLLLLLLLPp.',
+    '....pPLLLLLLPp..',
+    '.....pPPLLPPp...',
+    '......ppPPpp....',
+    '................',
+    '................',
+  ],
+];
+
+// ── 요괴: 가라카사(唐傘お化け) 16×16, 2프레임 (깡충) ─────────
+export const KASA: Grid[] = [
+  [
+    '.......KK.......',
+    '......KRRK......',
+    '.....KRRRRK.....',
+    '....KRRRRRRK....',
+    '...KRRLLLRRRK...',
+    '..KRRLLKKLRRRK..',
+    '.KRRRLLKKLRRRRK.',
+    '.KRRRRLLLRRRRRK.',
+    'KrRrRrRRRRrRrRrK',
+    '.KK.KK.KK.KK.KK.',
+    '.......KdK......',
+    '.......KdK......',
+    '.......KdK......',
+    '.......KdK......',
+    '......KKKKK.....',
+    '......KdddK.....',
+  ],
+  [
+    '................',
+    '.......KK.......',
+    '......KRRK......',
+    '.....KRRRRK.....',
+    '....KRRRRRRK....',
+    '...KRRLLLRRRK...',
+    '..KRRLLKKLRRRK..',
+    '.KRRRLLKKLRRRRK.',
+    '.KRRRRLLLRRRRRK.',
+    'KrRrRrRRRRrRrRrK',
+    '.KK.KK.KK.KK.KK.',
+    '.......KdK......',
+    '.......KdK......',
+    '......KKKKK.....',
+    '......KdddK.....',
+    '................',
+  ],
+];
+
+// ── 언령 구슬 (경험치) 6×6 ─────────────────────────────
+export const GEM: Grid = [
+  '..KK..',
+  '.KGGK.',
+  'KGLGgK',
+  'KGGggK',
+  '.KggK.',
+  '..KK..',
+];
+
+// ── 습격 아레나: 신사 경내 480×270 ────────────────────────
+export const ARENA_W = 480;
+export const ARENA_H = 270;
+/** 담장 아래 (마당이 시작되는 y) */
+export const ARENA_WALL_Y = 46;
+/** 토리이 48×46, 마당 위쪽 가운데 */
+export const TORII = { x: 216, y: 4, w: 48, h: 46 };
+/** 토리이 기둥 사이 (출구) */
+export const TORII_GATE = { x: TORII.x + 14, w: 20 };
+
+export function arenaBackground(): HTMLCanvasElement {
+  const [c, g] = canvas(ARENA_W, ARENA_H);
+  // 자갈 마당 + 갈퀴 무늬
+  rect(g, 0, 0, ARENA_W, ARENA_H, 'v');
+  let seed = 7;
+  const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  for (let y = ARENA_WALL_Y + 4; y < ARENA_H; y += 6) {
+    for (let x = 0; x < ARENA_W; x++) if ((x + y) % 3 !== 0) px(g, x, y, 'w');
+  }
+  for (let i = 0; i < 1600; i++) px(g, Math.floor(rnd() * ARENA_W), ARENA_WALL_Y + Math.floor(rnd() * (ARENA_H - ARENA_WALL_Y)), rnd() < 0.5 ? 'W' : 'g');
+
+  // 담장 (나무 울타리 + 기와)
+  rect(g, 0, 0, ARENA_W, ARENA_WALL_Y, 'n');
+  rect(g, 0, 0, ARENA_W, 6, 'K');
+  rect(g, 0, 6, ARENA_W, 2, 'N');
+  for (let x = 2; x < ARENA_W; x += 8) {
+    rect(g, x, 10, 4, ARENA_WALL_Y - 12, 'B');
+    rect(g, x, 10, 1, ARENA_WALL_Y - 12, 'b');
+  }
+  rect(g, 0, 18, ARENA_W, 2, 'd');
+  rect(g, 0, 34, ARENA_W, 2, 'd');
+  rect(g, 0, ARENA_WALL_Y - 2, ARENA_W, 2, 'K');
+  g.fillStyle = 'rgba(0,0,0,0.25)';
+  g.fillRect(0, ARENA_WALL_Y, ARENA_W, 4);
+
+  // 토리이 뒤 통로 (어둠)
+  rect(g, TORII_GATE.x, 6, TORII_GATE.w, ARENA_WALL_Y - 6, 'K');
+
+  // 토리이
+  const t = TORII;
+  rect(g, t.x - 2, t.y, t.w + 4, 4, 'K');
+  rect(g, t.x - 1, t.y + 1, t.w + 2, 2, 'R');
+  rect(g, t.x + 2, t.y + 4, t.w - 4, 3, 'K');
+  rect(g, t.x + 3, t.y + 5, t.w - 6, 1, 'r');
+  rect(g, t.x + 4, t.y + 14, t.w - 8, 4, 'K');
+  rect(g, t.x + 5, t.y + 15, t.w - 10, 2, 'R');
+  rect(g, t.x + 21, t.y + 7, 6, 7, 'K');
+  rect(g, t.x + 22, t.y + 8, 4, 5, 'G');
+  for (const px0 of [t.x + 8, t.x + 34]) {
+    rect(g, px0, t.y + 4, 6, t.h - 4, 'K');
+    rect(g, px0 + 1, t.y + 4, 4, t.h - 4, 'R');
+    rect(g, px0 + 4, t.y + 4, 1, t.h - 4, 'r');
+    rect(g, px0 - 1, t.y + t.h - 6, 8, 6, 'K');
+    rect(g, px0, t.y + t.h - 5, 6, 4, 'd');
+  }
+
+  // 석등 두 개
+  for (const lx of [150, 322]) {
+    rect(g, lx, 52, 12, 3, 'K');
+    rect(g, lx + 1, 55, 10, 6, 'w');
+    rect(g, lx + 4, 56, 4, 4, 'G');
+    rect(g, lx - 1, 51, 14, 2, 'v');
+    rect(g, lx + 4, 61, 4, 8, 'w');
+    rect(g, lx + 2, 69, 8, 3, 'v');
+    rect(g, lx + 1, 72, 10, 1, 'x');
+  }
+  return c;
+}

@@ -1,46 +1,600 @@
 import Phaser from 'phaser';
 import { UILayer } from '../ui/UILayer';
-import { WEAPONS } from '../data/weapons';
+import { LevelUpPanel } from '../ui/LevelUpPanel';
+import { WEAPONS, WeaponDef } from '../data/weapons';
+import { rollUpgrades } from '../data/upgrades';
+import { ROW_A } from '../data/kana';
 import { TEX } from '../art/textures';
-import { run } from '../systems/run';
+import { arenaBackground, ARENA_W, ARENA_H, ARENA_WALL_Y, TORII, TORII_GATE } from '../art/sprites';
+import { run, resetRaid, resetRun } from '../systems/run';
+import { createMoveKeys, readMove, MoveKeys } from '../systems/movement';
+import { makeQuiz } from '../systems/quiz';
+import { tts } from '../systems/tts';
 
-/**
- * 습격 방 — 아직 제작 전.
- * 지금은 프로토타입의 끝: 고른 무기를 보여주고 "제작 예정"으로 마무리한다.
- */
+const ZOOM = 2;
+const ROOMS = 3;
+const KILL_TARGETS = [30, 40, 50];
+const PLAYER_SPEED = 80;
+const BOUNDS = { minX: 8, maxX: ARENA_W - 8, minY: ARENA_WALL_Y + 12, maxY: ARENA_H - 4 };
+/** 결계가 풀린 토리이 안으로 이만큼 올라가면 다음 방 */
+const GATE_ENTER_Y = ARENA_WALL_Y + 4;
+const BG_KEY = 'arena-bg';
+/** 레벨업에 필요한 구슬 수 */
+const xpNeed = (level: number) => 3 + level * 2;
+
+type EnemyKind = 'hitodama' | 'kasa';
+const ENEMY_DEFS: Record<EnemyKind, { hp: number; speed: number; damage: number; frameMs: number; radius: number }> = {
+  hitodama: { hp: 10, speed: 34, damage: 8, frameMs: 260, radius: 6 },
+  kasa: { hp: 26, speed: 26, damage: 12, frameMs: 180, radius: 7 },
+};
+
+interface Enemy {
+  kind: EnemyKind;
+  sprite: Phaser.GameObjects.Image;
+  hp: number;
+  speed: number;
+  /** 넉백 속도 */
+  kx: number;
+  ky: number;
+  flashUntil: number;
+  /** 여우불에 마지막으로 맞은 시각 */
+  orbHitAt: number;
+  age: number;
+}
+
+interface Shot {
+  sprite: Phaser.GameObjects.Image;
+  vx: number;
+  vy: number;
+  life: number;
+  pierce: number;
+  hit: Set<Enemy>;
+}
+
+interface Gem {
+  sprite: Phaser.GameObjects.Image;
+  pulled: boolean;
+  speed: number;
+}
+
+type State = 'play' | 'paused' | 'cleared' | 'dead' | 'leaving';
+
 export class RaidScene extends Phaser.Scene {
+  private ui!: UILayer;
+  private keys!: MoveKeys;
+  private weapon!: WeaponDef;
+  private state: State = 'play';
+  private player!: Phaser.GameObjects.Image;
+  private shadow!: Phaser.GameObjects.Ellipse;
+  private enemies: Enemy[] = [];
+  private shots: Shot[] = [];
+  private gems: Gem[] = [];
+  private orbs: Phaser.GameObjects.Image[] = [];
+  private orbAngle = 0;
+  private barrier!: Phaser.GameObjects.Rectangle;
+  private kills = 0;
+  private target = 30;
+  private spawnAcc = 0;
+  private weaponAcc = 0;
+  private invulnUntil = 0;
+  private walkTime = 0;
+  private pendingLevels = 0;
+  private ttsOk = false;
+  private levelPanel!: LevelUpPanel;
+  private hud!: { hp: HTMLElement; hpText: HTMLElement; xp: HTMLElement; lv: HTMLElement; kills: HTMLElement };
+  private hudCache = '';
+
   constructor() {
     super('Raid');
   }
 
   create(): void {
-    this.cameras.main.fadeIn(400, 12, 10, 18);
-    const ui = new UILayer(this);
-    const weapon = WEAPONS.find((w) => w.id === run.weapon);
+    if (!run.weapon) {
+      // 개발 중 바로 들어온 경우
+      run.weapon = 'ofuda';
+      resetRaid();
+    }
+    this.weapon = WEAPONS.find((w) => w.id === run.weapon)!;
+    this.state = 'play';
+    this.enemies = [];
+    this.shots = [];
+    this.gems = [];
+    this.orbs = [];
+    this.kills = 0;
+    this.spawnAcc = 0;
+    this.weaponAcc = 0;
+    this.invulnUntil = 0;
+    this.pendingLevels = 0;
+    this.hudCache = '';
+    this.target = KILL_TARGETS[run.room - 1] ?? 50;
 
-    if (weapon) {
-      const glow = this.add.image(320, 112, TEX.glow).setScale(2).setAlpha(0.7);
-      this.tweens.add({ targets: glow, scale: 2.3, duration: 1100, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
-      const icon = this.add.image(320, 112, TEX.icon(weapon.id)).setScale(4);
-      this.tweens.add({ targets: icon, y: 108, duration: 1100, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+    if (!this.textures.exists(BG_KEY)) this.textures.addCanvas(BG_KEY, arenaBackground());
+    this.add.image(0, 0, BG_KEY).setOrigin(0);
+
+    // 토리이 결계 (클리어 전까지 출구를 막는다)
+    this.barrier = this.add.rectangle(TORII_GATE.x, 6, TORII_GATE.w, ARENA_WALL_Y - 4, 0x7a62b8, 0.55).setOrigin(0).setDepth(1);
+    this.tweens.add({ targets: this.barrier, fillAlpha: 0.3, duration: 900, yoyo: true, repeat: -1 });
+
+    this.shadow = this.add.ellipse(ARENA_W / 2, 210, 14, 4, 0x000000, 0.3);
+    this.player = this.add.image(ARENA_W / 2, 210, TEX.player).setOrigin(0.5, 1);
+
+    const cam = this.cameras.main;
+    cam.setZoom(ZOOM);
+    cam.setBounds(0, 0, ARENA_W, ARENA_H);
+    cam.startFollow(this.player, true, 0.15, 0.15);
+    cam.fadeIn(350, 12, 10, 18);
+
+    this.keys = createMoveKeys(this);
+    this.ui = new UILayer(this);
+    this.levelPanel = new LevelUpPanel(this.ui);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.levelPanel.close());
+    this.createHud();
+    void tts.isAvailable().then((ok) => (this.ttsOk = ok));
+
+    const banner = this.ui.el('div', 'raid-banner');
+    banner.innerHTML = `<b>습격 ${run.room}</b><span>요괴 ${this.target}마리를 물리쳐라</span>`;
+    this.time.delayedCall(2200, () => banner.remove());
+  }
+
+  // ── HUD ──────────────────────────────────────────────
+
+  private createHud(): void {
+    const left = this.ui.el('div', 'raid-hud-left');
+    this.ui.el('div', 'raid-room', `👹 습격 ${run.room}/${ROOMS}`, left);
+    const hpBar = this.ui.el('div', 'bar hp', '', left);
+    const hp = this.ui.el('i', '', '', hpBar);
+    const hpText = this.ui.el('span', '', '', hpBar);
+    const xpBar = this.ui.el('div', 'bar xp raid-xp');
+    const xp = this.ui.el('i', '', '', xpBar);
+    const lv = this.ui.el('div', 'raid-lv');
+    const kills = this.ui.el('div', 'raid-kills');
+    this.hud = { hp, hpText, xp, lv, kills };
+    this.updateHud();
+  }
+
+  private updateHud(): void {
+    const b = run.build;
+    const key = `${Math.ceil(run.hp)}|${b.maxHp}|${run.xp}|${run.level}|${this.kills}`;
+    if (key === this.hudCache) return;
+    this.hudCache = key;
+    this.hud.hp.style.width = `${Math.max(0, (run.hp / b.maxHp) * 100)}%`;
+    this.hud.hpText.textContent = `${Math.max(0, Math.ceil(run.hp))} / ${b.maxHp}`;
+    this.hud.xp.style.width = `${(run.xp / xpNeed(run.level)) * 100}%`;
+    this.hud.lv.textContent = `Lv ${run.level}`;
+    this.hud.kills.innerHTML = `요괴 <b>${Math.min(this.kills, this.target)}</b> / ${this.target}`;
+  }
+
+  // ── 매 프레임 ─────────────────────────────────────────
+
+  update(time: number, rawDelta: number): void {
+    if (this.state === 'paused' || this.state === 'dead' || this.state === 'leaving') return;
+    const dt = Math.min(rawDelta, 50);
+
+    this.movePlayer(time, dt);
+    if (this.state === 'play') {
+      this.spawn(dt);
+      this.fireWeapon(dt);
+    }
+    this.updateOrbs(dt);
+    this.updateShots(dt);
+    this.updateEnemies(time, dt);
+    this.updateGems(dt);
+    if (this.state === 'play') this.checkContact(time);
+    if (this.state === 'cleared') this.checkGate();
+    this.updateHud();
+
+    if (this.pendingLevels > 0 && (this.state === 'play' || this.state === 'cleared')) this.levelUp();
+  }
+
+  private movePlayer(time: number, dt: number): void {
+    const dir = readMove(this.keys);
+    const p = this.player;
+    if (dir.x === 0 && dir.y === 0) {
+      p.scaleY = 1 + Math.sin(time / 350) * 0.03;
+    } else {
+      const step = (PLAYER_SPEED * run.build.moveSpeed * dt) / 1000;
+      const inGate = this.state === 'cleared' && p.x > TORII_GATE.x + 3 && p.x < TORII_GATE.x + TORII_GATE.w - 3;
+      const minY = inGate ? ARENA_WALL_Y - 2 : BOUNDS.minY;
+      p.x = Phaser.Math.Clamp(p.x + dir.x * step, BOUNDS.minX, BOUNDS.maxX);
+      p.y = Phaser.Math.Clamp(p.y + dir.y * step, minY, BOUNDS.maxY);
+      if (dir.x !== 0) p.setFlipX(dir.x < 0);
+      this.walkTime += dt;
+      p.scaleY = 1 - Math.abs(Math.sin(this.walkTime / 70)) * 0.08;
+    }
+    // 무적 시간엔 깜빡
+    p.setAlpha(time < this.invulnUntil && Math.floor(time / 80) % 2 === 0 ? 0.35 : 1);
+    p.setDepth(p.y);
+    this.shadow.setPosition(p.x, p.y).setDepth(p.y - 0.5);
+  }
+
+  // ── 요괴 ─────────────────────────────────────────────
+
+  private spawn(dt: number): void {
+    const interval = Math.max(280, 1000 - this.kills * 12 - (run.room - 1) * 150);
+    const cap = 30 + run.room * 15;
+    this.spawnAcc += dt;
+    while (this.spawnAcc >= interval) {
+      this.spawnAcc -= interval;
+      if (this.enemies.length < cap && this.kills + this.enemies.length < this.target + 15) this.spawnEnemy();
+    }
+  }
+
+  private spawnEnemy(): void {
+    const kasaChance = 0.15 + (run.room - 1) * 0.1 + (this.kills > this.target / 2 ? 0.1 : 0);
+    const kind: EnemyKind = Math.random() < kasaChance ? 'kasa' : 'hitodama';
+    const def = ENEMY_DEFS[kind];
+    // 화면 밖(언령사에서 충분히 먼 곳)에서 나타난다
+    let x = 0;
+    let y = 0;
+    for (let tries = 0; tries < 8; tries++) {
+      const a = Math.random() * Math.PI * 2;
+      const d = 190 + Math.random() * 60;
+      x = Phaser.Math.Clamp(this.player.x + Math.cos(a) * d, BOUNDS.minX, BOUNDS.maxX);
+      y = Phaser.Math.Clamp(this.player.y + Math.sin(a) * d, BOUNDS.minY, BOUNDS.maxY);
+      if (Phaser.Math.Distance.Between(x, y, this.player.x, this.player.y) > 130) break;
+    }
+    const sprite = this.add.image(x, y, kind === 'kasa' ? TEX.kasa(0) : TEX.hitodama(0)).setOrigin(0.5, 0.75);
+    sprite.setAlpha(0);
+    this.tweens.add({ targets: sprite, alpha: 1, duration: 250 });
+    this.enemies.push({
+      kind,
+      sprite,
+      hp: def.hp * (1 + (run.room - 1) * 0.25),
+      speed: def.speed * (1 + (run.room - 1) * 0.08) * (0.9 + Math.random() * 0.2),
+      kx: 0,
+      ky: 0,
+      flashUntil: 0,
+      orbHitAt: 0,
+      age: Math.random() * 1000,
+    });
+  }
+
+  private updateEnemies(time: number, dt: number): void {
+    const p = this.player;
+    const s = dt / 1000;
+    for (const e of this.enemies) {
+      const def = ENEMY_DEFS[e.kind];
+      e.age += dt;
+      const dx = p.x - e.sprite.x;
+      const dy = p.y - 4 - e.sprite.y;
+      const d = Math.hypot(dx, dy) || 1;
+      // 가라카사는 깡충깡충: 뛸 때만 빠르다
+      const hop = e.kind === 'kasa' ? 0.35 + Math.abs(Math.sin((e.age / 360) * Math.PI)) * 1.1 : 1;
+      let vx = (dx / d) * e.speed * hop;
+      let vy = (dy / d) * e.speed * hop;
+      if (this.state === 'cleared') {
+        vx = -vx * 2;
+        vy = -vy * 2;
+      }
+      e.sprite.x += (vx + e.kx) * s;
+      e.sprite.y += (vy + e.ky) * s;
+      e.kx *= 0.85;
+      e.ky *= 0.85;
+
+      const frame = Math.floor(e.age / def.frameMs) % 2;
+      e.sprite.setTexture(e.kind === 'kasa' ? TEX.kasa(frame) : TEX.hitodama(frame));
+      e.sprite.setFlipX(dx < 0);
+      e.sprite.setDepth(e.sprite.y + 4);
+      if (e.flashUntil && time > e.flashUntil) {
+        e.sprite.clearTint();
+        e.flashUntil = 0;
+      }
     }
 
-    const box = ui.el('div', 'raid-end fade-up');
-    ui.el('div', 'raid-title', '👹 습격 — 제작 예정', box);
-    ui.el(
-      'p',
-      '',
-      `고른 무기 <b>${weapon ? `${weapon.name} <span class="jp">${weapon.jp}</span>` : '없음'}</b>` +
-        ` · 익힌 글자 <b class="jp">${run.learned.join(' ') || '-'}</b><br>` +
-        '여기까지가 현재 프로토타입이에요. 습격 방은 다음 단계에서 만들어요.',
-      box,
-    );
-    const row = ui.el('div', 'row', '', box);
-    ui.button('무기 다시 고르기', () => this.scene.start('WeaponSelect'), '', row);
-    ui.button('서고부터 다시', () => {
-      run.weapon = null;
-      run.learned = [];
-      this.scene.start('Library');
-    }, 'primary', row);
+    // 서로 겹치지 않게 살짝 밀어낸다
+    for (let i = 0; i < this.enemies.length; i++) {
+      const a = this.enemies[i].sprite;
+      for (let j = i + 1; j < this.enemies.length; j++) {
+        const b = this.enemies[j].sprite;
+        const dx = b.x - a.x;
+        const dy = b.y - a.y;
+        const d2 = dx * dx + dy * dy;
+        if (d2 > 0 && d2 < 110) {
+          const d = Math.sqrt(d2);
+          const push = ((10.5 - d) / d) * 0.5;
+          a.x -= dx * push;
+          a.y -= dy * push;
+          b.x += dx * push;
+          b.y += dy * push;
+        }
+      }
+    }
+  }
+
+  private damage(e: Enemy, amount: number, fromX: number, fromY: number, knock: number): void {
+    if (e.hp <= 0) return;
+    e.hp -= amount;
+    e.sprite.setTintFill(0xffffff);
+    e.flashUntil = this.time.now + 60;
+    const dx = e.sprite.x - fromX;
+    const dy = e.sprite.y - fromY;
+    const d = Math.hypot(dx, dy) || 1;
+    e.kx += (dx / d) * knock;
+    e.ky += (dy / d) * knock;
+    if (e.hp <= 0) this.kill(e, true);
+  }
+
+  private kill(e: Enemy, drop: boolean): void {
+    this.enemies = this.enemies.filter((x) => x !== e);
+    this.puff(e.sprite.x, e.sprite.y - 4);
+    if (drop) {
+      this.dropGem(e.sprite.x, e.sprite.y);
+      this.kills++;
+      if (this.kills >= this.target && this.state === 'play') this.clearRoom();
+    }
+    e.sprite.destroy();
+  }
+
+  private puff(x: number, y: number): void {
+    for (let i = 0; i < 4; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const s = this.add.image(x, y, TEX.spark).setDepth(y + 10);
+      this.tweens.add({
+        targets: s,
+        x: x + Math.cos(a) * 10,
+        y: y + Math.sin(a) * 10,
+        alpha: 0,
+        duration: 300,
+        onComplete: () => s.destroy(),
+      });
+    }
+  }
+
+  // ── 무기 ─────────────────────────────────────────────
+
+  private fireWeapon(dt: number): void {
+    if (this.weapon.id === 'kitsunebi') return; // 여우불은 늘 돈다
+    const cd = this.weapon.base.cooldownMs * run.build.cooldown;
+    this.weaponAcc += dt;
+    if (this.weaponAcc < cd) return;
+    if (this.weapon.id === 'ofuda') {
+      if (this.throwOfuda()) this.weaponAcc = 0;
+    } else {
+      this.weaponAcc = 0;
+      for (let i = 0; i < run.build.count; i++) this.time.delayedCall(i * 200, () => this.ringPulse());
+    }
+  }
+
+  /** 가까운 요괴부터 count장. 사거리 안에 없으면 던지지 않는다 */
+  private throwOfuda(): boolean {
+    const p = this.player;
+    const range = this.weapon.base.range;
+    const targets = this.enemies
+      .map((e) => ({ e, d: Phaser.Math.Distance.Between(p.x, p.y - 8, e.sprite.x, e.sprite.y) }))
+      .filter((t) => t.d <= range)
+      .sort((a, b) => a.d - b.d)
+      .slice(0, run.build.count);
+    if (targets.length === 0) return false;
+    // 요괴가 count보다 적으면 가장 가까운 요괴에게 여러 장
+    for (let i = 0; i < run.build.count; i++) {
+      const t = targets[i % targets.length].e;
+      const a = Phaser.Math.Angle.Between(p.x, p.y - 8, t.sprite.x, t.sprite.y) + (i >= targets.length ? (i - targets.length + 1) * 0.15 : 0);
+      const sprite = this.add.image(p.x, p.y - 8, TEX.shotOfuda).setRotation(a + Math.PI / 2).setDepth(500);
+      const speed = 230;
+      this.shots.push({ sprite, vx: Math.cos(a) * speed, vy: Math.sin(a) * speed, life: 900, pierce: run.build.pierce, hit: new Set() });
+    }
+    return true;
+  }
+
+  private updateShots(dt: number): void {
+    const dmg = this.weapon.base.damage * run.build.damage;
+    for (const shot of this.shots) {
+      shot.sprite.x += (shot.vx * dt) / 1000;
+      shot.sprite.y += (shot.vy * dt) / 1000;
+      shot.life -= dt;
+      for (const e of this.enemies) {
+        if (shot.hit.has(e) || shot.life <= 0) continue;
+        if (Phaser.Math.Distance.Between(shot.sprite.x, shot.sprite.y, e.sprite.x, e.sprite.y - 3) < ENEMY_DEFS[e.kind].radius + 3) {
+          shot.hit.add(e);
+          this.damage(e, dmg, shot.sprite.x, shot.sprite.y, 60);
+          if (shot.pierce-- <= 0) shot.life = 0;
+        }
+      }
+    }
+    this.shots = this.shots.filter((s) => {
+      if (s.life > 0) return true;
+      s.sprite.destroy();
+      return false;
+    });
+  }
+
+  /** 방울: 주변을 한꺼번에 치는 원형 음파 */
+  private ringPulse(): void {
+    if (this.state !== 'play') return;
+    const p = this.player;
+    const cx = p.x;
+    const cy = p.y - 6;
+    const r = this.weapon.base.range * run.build.area;
+    const dmg = this.weapon.base.damage * run.build.damage;
+    for (const e of [...this.enemies]) {
+      if (Phaser.Math.Distance.Between(cx, cy, e.sprite.x, e.sprite.y) <= r + ENEMY_DEFS[e.kind].radius) this.damage(e, dmg, cx, cy, 90);
+    }
+    const g = this.add.graphics().setDepth(499);
+    const st = { r: 4, a: 1 };
+    this.tweens.add({
+      targets: st,
+      r,
+      a: 0,
+      duration: 280,
+      ease: 'Cubic.easeOut',
+      onUpdate: () => {
+        g.clear();
+        g.lineStyle(3, 0xf0b84a, st.a * 0.4).strokeCircle(cx, cy, st.r + 1.5);
+        g.lineStyle(1.5, 0xfffaf0, st.a).strokeCircle(cx, cy, st.r);
+      },
+      onComplete: () => g.destroy(),
+    });
+  }
+
+  /** 여우불: count개가 몸 주위를 돌며 닿는 요괴를 태운다 */
+  private updateOrbs(dt: number): void {
+    if (this.weapon.id !== 'kitsunebi') return;
+    while (this.orbs.length < run.build.count) this.orbs.push(this.add.image(0, 0, TEX.orbKitsunebi));
+    const radius = this.weapon.base.range * run.build.area;
+    const dmg = this.weapon.base.damage * run.build.damage;
+    const hitGap = this.weapon.base.cooldownMs * run.build.cooldown;
+    this.orbAngle += (dt / 1400) * Math.PI * 2 * run.build.orbitSpeed;
+    const p = this.player;
+    this.orbs.forEach((orb, k) => {
+      const a = this.orbAngle + (Math.PI * 2 * k) / this.orbs.length;
+      orb.setPosition(p.x + Math.cos(a) * radius, p.y - 8 + Math.sin(a) * radius * 0.85);
+      orb.setDepth(orb.y + 8);
+      if (this.state !== 'play') return;
+      for (const e of [...this.enemies]) {
+        if (this.time.now - e.orbHitAt < hitGap) continue;
+        if (Phaser.Math.Distance.Between(orb.x, orb.y, e.sprite.x, e.sprite.y - 3) < ENEMY_DEFS[e.kind].radius + 7) {
+          e.orbHitAt = this.time.now;
+          this.damage(e, dmg, p.x, p.y - 6, 130);
+        }
+      }
+    });
+  }
+
+  // ── 언령 구슬 · 레벨업 ─────────────────────────────────
+
+  private dropGem(x: number, y: number): void {
+    const sprite = this.add.image(x, y - 2, TEX.gem).setDepth(y - 1);
+    this.gems.push({ sprite, pulled: this.state === 'cleared', speed: 40 });
+  }
+
+  private updateGems(dt: number): void {
+    const p = this.player;
+    const magnet = 28 * run.build.magnet;
+    for (const g of this.gems) {
+      const d = Phaser.Math.Distance.Between(g.sprite.x, g.sprite.y, p.x, p.y - 6);
+      if (!g.pulled && d < magnet) g.pulled = true;
+      if (!g.pulled) continue;
+      g.speed = Math.min(g.speed + dt * 0.5, 260);
+      const step = (g.speed * dt) / 1000;
+      if (d <= step + 4) {
+        g.sprite.destroy();
+        g.sprite = null as unknown as Phaser.GameObjects.Image;
+        this.gainXp(1);
+        continue;
+      }
+      g.sprite.x += ((p.x - g.sprite.x) / d) * step;
+      g.sprite.y += ((p.y - 6 - g.sprite.y) / d) * step;
+    }
+    this.gems = this.gems.filter((g) => g.sprite);
+  }
+
+  private gainXp(n: number): void {
+    run.xp += n;
+    while (run.xp >= xpNeed(run.level)) {
+      run.xp -= xpNeed(run.level);
+      run.level++;
+      this.pendingLevels++;
+    }
+  }
+
+  /** 시간이 멈추고 퀴즈 → 업그레이드 */
+  private levelUp(): void {
+    this.pendingLevels--;
+    const resumeTo = this.state;
+    this.state = 'paused';
+    this.tweens.pauseAll();
+    this.time.paused = true;
+    this.ui.root.classList.add('dimmed');
+
+    const quiz = makeQuiz(this.ttsOk);
+    const offers = rollUpgrades(run.weapon, run.upgrades, 3);
+    void this.levelPanel.open(quiz, run.level, offers).then(({ upgrade }) => {
+      upgrade.apply(run.build, (amount) => (run.hp = Math.min(run.build.maxHp, run.hp + amount)));
+      run.upgrades.push(upgrade.id);
+      this.ui.root.classList.remove('dimmed');
+      this.tweens.resumeAll();
+      this.time.paused = false;
+      this.state = resumeTo;
+      this.hudCache = '';
+    });
+  }
+
+  // ── 피격 · 패배 ──────────────────────────────────────
+
+  private checkContact(time: number): void {
+    if (time < this.invulnUntil) return;
+    const p = this.player;
+    for (const e of this.enemies) {
+      if (Phaser.Math.Distance.Between(p.x, p.y - 6, e.sprite.x, e.sprite.y - 3) < ENEMY_DEFS[e.kind].radius + 5) {
+        run.hp -= ENEMY_DEFS[e.kind].damage;
+        this.invulnUntil = time + 700;
+        this.cameras.main.shake(120, 0.004);
+        if (run.hp <= 0) this.die();
+        return;
+      }
+    }
+  }
+
+  private die(): void {
+    this.state = 'dead';
+    run.hp = 0;
+    this.updateHud();
+    this.tweens.add({ targets: this.player, alpha: 0.2, angle: 90, duration: 500 });
+    this.time.delayedCall(700, () => {
+      this.ui.root.classList.add('dimmed');
+      const panel = this.ui.el('div', 'panel fade-in defeat');
+      this.ui.el('h2', '', '쓰러졌다…', panel);
+      const wrong = ROW_A.filter((k) => run.wrong[k.kana]).sort((a, b) => run.wrong[b.kana] - run.wrong[a.kana]);
+      if (wrong.length > 0) {
+        this.ui.el('p', '', '이번에 틀린 글자 — 다시 한 번 눈에 익혀 두자', panel);
+        const row = this.ui.el('div', 'row', '', panel);
+        for (const k of wrong) {
+          const chip = this.ui.el('div', 'wrong-chip', '', row);
+          chip.innerHTML = `<span class="kana">${k.kana}</span><b>${k.ko}</b><small>×${run.wrong[k.kana]}</small>`;
+          chip.addEventListener('click', () => void tts.speak(k.kana));
+        }
+      } else {
+        this.ui.el('p', '', '틀린 글자는 없었다. 요괴를 피하는 연습을 해 보자!', panel);
+      }
+      const btns = this.ui.el('div', 'row', '', panel);
+      btns.style.marginBottom = '0';
+      this.ui.button('습격 1부터 다시', () => {
+        resetRaid();
+        this.scene.restart();
+      }, '', btns);
+      this.ui.button('서고부터 다시', () => {
+        resetRun();
+        this.scene.start('Library');
+      }, 'primary', btns);
+    });
+  }
+
+  // ── 클리어 · 다음 방 ─────────────────────────────────
+
+  private clearRoom(): void {
+    this.state = 'cleared';
+    // 남은 요괴는 흩어지고, 구슬은 모두 끌려온다
+    for (const e of [...this.enemies]) {
+      this.tweens.add({ targets: e.sprite, alpha: 0, duration: 500, onComplete: () => this.kill(e, false) });
+    }
+    this.gems.forEach((g) => (g.pulled = true));
+    this.tweens.killTweensOf(this.barrier);
+    this.tweens.add({ targets: this.barrier, fillAlpha: 0, duration: 700, onComplete: () => this.barrier.setVisible(false) });
+    const glow = this.add.image(TORII_GATE.x + TORII_GATE.w / 2, TORII.y + 28, TEX.glow).setScale(0.4).setAlpha(0).setDepth(2);
+    this.tweens.add({ targets: glow, alpha: 0.9, scale: 0.6, duration: 600 });
+
+    const banner = this.ui.el('div', 'raid-banner');
+    const last = run.room >= ROOMS;
+    banner.innerHTML = `<b>습격 ${run.room} 돌파!</b><span>결계가 풀렸다 — <em>WASD</em>로 토리이를 지나가자</span>`;
+    this.time.delayedCall(3000, () => banner.remove());
+    const hint = this.ui.el('div', 'hint', `<b>WASD</b>로 위쪽 토리이를 지나 ${last ? '보스에게' : '다음 습격으로'}`);
+    hint.style.opacity = '1';
+  }
+
+  private checkGate(): void {
+    const p = this.player;
+    const inGate = p.x > TORII_GATE.x + 3 && p.x < TORII_GATE.x + TORII_GATE.w - 3;
+    if (!inGate || p.y > GATE_ENTER_Y) return;
+    this.state = 'leaving';
+    this.tweens.add({ targets: [p, this.shadow], y: ARENA_WALL_Y - 10, alpha: 0, duration: 300 });
+    this.cameras.main.fadeOut(450, 12, 10, 18);
+    this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => {
+      if (run.room < ROOMS) {
+        run.room++;
+        this.scene.restart();
+      } else {
+        this.scene.start('ComingSoon');
+      }
+    });
   }
 }
