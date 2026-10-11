@@ -8,6 +8,7 @@ import { RaidScene } from './scenes/RaidScene';
 import { BossScene } from './scenes/BossScene';
 import { TitleScene } from './scenes/TitleScene';
 import { SandboxScene } from './scenes/SandboxScene';
+import { BossLabScene } from './scenes/BossLabScene';
 import { loadProgress } from './systems/progress';
 import { SettingsPanel } from './ui/SettingsPanel';
 import { loadSettings } from './systems/settings';
@@ -21,7 +22,7 @@ const game = new Phaser.Game({
   pixelArt: true,
   roundPixels: true,
   scale: { mode: Phaser.Scale.NONE, autoCenter: Phaser.Scale.NO_CENTER },
-  scene: [BootScene, TitleScene, LibraryScene, WeaponSelectScene, RaidScene, BossScene, SandboxScene],
+  scene: [BootScene, TitleScene, LibraryScene, WeaponSelectScene, RaidScene, BossScene, SandboxScene, BossLabScene],
 });
 
 fitStage(game);

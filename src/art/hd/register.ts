@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { sheet } from './grid';
 import { playerFrames, PLAYER_FRAMES } from './player';
+import { yamabikoHd, echoBullet, boulder } from './bossHd';
 import { hitodamaFrames, makiwara, ofudaShot, foxfire, stoneLantern, rock, pine, dust } from './world';
 
 /** 32px 리마스터 텍스처 키 */
@@ -10,6 +11,9 @@ export const HD = {
   makiwara: 'hd-makiwara',
   ofuda: 'hd-ofuda',
   foxfire: 'hd-foxfire',
+  yamabiko: 'hd-yamabiko',
+  echo: 'hd-echo',
+  boulder: 'hd-boulder',
   lantern: 'hd-lantern',
   rock: 'hd-rock',
   pine: 'hd-pine',
@@ -34,10 +38,14 @@ export function registerHd(scene: Phaser.Scene): void {
   addImage(scene, HD.makiwara, makiwara().toCanvas());
   addImage(scene, HD.ofuda, ofudaShot().toCanvas());
   addImage(scene, HD.foxfire, foxfire().toCanvas());
+  // 야마비코: 0 = 대기, 1 = 외침, 2 = 팔 들기
+  addSheet(scene, HD.yamabiko, sheet([yamabikoHd('idle'), yamabikoHd('shout'), yamabikoHd('windup')]), 80, 80);
+  addImage(scene, HD.echo, echoBullet().toCanvas());
+  addImage(scene, HD.boulder, boulder().toCanvas());
   addImage(scene, HD.lantern, stoneLantern().toCanvas());
   addImage(scene, HD.rock, rock().toCanvas());
   addImage(scene, HD.pine, pine().toCanvas());
-  for (const k of ['w', 'W', 'v', 'P', 'L', 'G', 'C']) addImage(scene, HD.dust(k), dust(k as never));
+  for (const k of ['w', 'W', 'v', 'P', 'L', 'G', 'C', 'R', 'y', 'd']) addImage(scene, HD.dust(k), dust(k as never));
 
   const a = scene.anims;
   const mk = (key: string, frames: readonly number[], frameRate: number, repeat = -1) => {

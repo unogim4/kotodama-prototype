@@ -312,3 +312,16 @@ button.ucard:hover { border-color: var(--gold); background: #33417a; }
 .arms-slot em { position: absolute; left: 4px; right: 4px; bottom: 4px; display: flex; gap: 2px; }
 .arms-slot em i { flex: 1; height: 4px; background: #26335f; border: 1px solid var(--ink); }
 .arms-slot em i.on { background: var(--gold); }
+
+/* ── 보스 시험장 ── */
+.lab-list { right: 8px; top: 44px; width: 128px; background: rgba(27,22,38,.82); border: 1px solid #3b4f8f; padding: 5px 6px; }
+.lab-list > b { display: block; font-family: Galmuri9, sans-serif; font-size: 10px; font-weight: normal; color: var(--gold); margin-bottom: 3px; }
+.lab-item { position: relative; font-family: Galmuri9, sans-serif; font-size: 10px; padding: 1px 0 1px 15px; opacity: .75; }
+.lab-item i { position: absolute; left: 0; font-style: normal; color: #8fa0d8; }
+.lab-item small { float: right; opacity: .55; }
+.lab-item.unique { color: #e6c9ff; }
+.lab-item.on { opacity: 1; color: var(--gold); }
+.lab-mode { margin-top: 4px; font-family: Galmuri9, sans-serif; font-size: 10px; opacity: .6; }
+.lab-back { right: 64px; bottom: 6px; }
+.boss-name small { font-family: Galmuri9, sans-serif; font-size: 10px; opacity: .6; }
+.title-lab { left: 170px; bottom: 6px; }

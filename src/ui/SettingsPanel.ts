@@ -16,6 +16,7 @@ interface Jump {
 const JUMPS: Jump[] = [
   { group: '서고', label: '챕터 선택', go: () => ['Title'] },
   { group: '서고', label: '🧪 전투 샘플', go: () => ['Sandbox'] },
+  { group: '서고', label: '🧪 보스 시험장', go: () => ['BossLab'] },
   { group: '서고', label: '서고 (처음부터)', go: () => ['Library'] },
   { group: '서고', label: '무기 선택', go: () => ['WeaponSelect'] },
   { group: '습격', label: '습격 1', go: () => ['Raid', room(1)] },

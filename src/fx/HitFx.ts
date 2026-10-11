@@ -21,12 +21,13 @@ export class HitFx {
   }
 
   /** 맞은 자리에서 튀어 오르는 숫자. kind: normal / crit(금색·큼) / boss(보라) / heal(초록) */
-  number(x: number, y: number, value: number, kind: 'normal' | 'crit' | 'boss' | 'heal' = 'normal'): void {
+  number(x: number, y: number, value: number, kind: 'normal' | 'crit' | 'boss' | 'heal' | 'hurt' = 'normal'): void {
     const style = {
       normal: { font: 'Galmuri11', size: 12, color: '#fffaf0' },
       crit: { font: 'Galmuri14', size: 15, color: '#f0b84a' },
       boss: { font: 'Galmuri11', size: 12, color: '#e6c9ff' },
       heal: { font: 'Galmuri11', size: 12, color: '#9be3b0' },
+      hurt: { font: 'Galmuri11', size: 12, color: '#ff8a7a' },
     }[kind];
     const text = kind === 'crit' ? `${Math.round(value)}!` : `${Math.round(value)}`;
     const t = this.scene.add
