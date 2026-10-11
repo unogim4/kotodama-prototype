@@ -195,3 +195,54 @@ button.ucard:hover { border-color: var(--gold); background: #33417a; }
 .raid-clock { font-family: Galmuri14, sans-serif; font-size: 15px; color: var(--gold); }
 .raid-clock.hurry { color: #ffb4a6; }
 .raid-kills small { font-family: Galmuri9, sans-serif; font-size: 10px; opacity: .8; }
+
+/* ── 보스 ── */
+.boss-hud { left: 50%; top: 8px; transform: translateX(-50%); width: 300px; text-align: center; }
+.boss-name { font-family: Galmuri14, sans-serif; font-size: 15px; color: #e6c9ff; text-shadow: 1px 1px 0 var(--ink); margin-bottom: 3px; }
+.boss-name .jp { font-size: 13px; color: var(--text); margin-left: 2px; }
+.bar.boss { position: relative; width: 300px; height: 10px; box-shadow: 0 0 0 1px #7a62b8; }
+.bar.boss i { background: #a07ae0; box-shadow: inset 0 -3px 0 #6a4fb0; }
+.bar.boss i.heal { background: #7fd49a; box-shadow: none; transition: width .5s; }
+.bar.boss.healing { box-shadow: 0 0 0 1px #7fd49a, 0 0 8px #7fd49a; }
+.bar.boss .mark { position: absolute; top: -2px; bottom: -2px; width: 1px; background: var(--paper); opacity: .7; }
+.boss-phase { font-family: Galmuri9, sans-serif; font-size: 10px; margin-top: 3px; opacity: .85; text-shadow: 1px 1px 0 var(--ink); }
+.boss-bubble { transform: translate(-50%, -100%); background: var(--paper); color: var(--ink); font-family: Galmuri14, sans-serif;
+               font-size: 15px; padding: 3px 8px; border: 1px solid var(--ink); box-shadow: 2px 2px 0 var(--ink); white-space: nowrap;
+               animation: pop .25s ease-out both; }
+@keyframes pop { from { transform: translate(-50%, -80%) scale(.6); opacity: 0; } to { transform: translate(-50%, -100%) scale(1); opacity: 1; } }
+.tile-glyph { font-size: 20px; pointer-events: none; }
+
+.bq { left: 50%; bottom: 6px; transform: translateX(-50%); width: 520px; background: rgba(27, 22, 38, .88);
+      border: 1px solid #7a62b8; box-shadow: 0 0 0 1px var(--ink); padding: 4px 10px 6px; transition: opacity .15s; }
+.bq.behind { opacity: .55; }
+.bq.ok { border-color: #7fd49a; }
+.bq.ng { border-color: var(--vermilion); }
+.bq-head { display: flex; justify-content: space-between; font-family: Galmuri9, sans-serif; font-size: 10px; }
+.bq-head b { color: #e6c9ff; font-weight: normal; }
+.bq-head span { color: var(--gold); }
+.bq-timer { position: relative; height: 3px; background: var(--ink); margin: 3px 0 5px; box-shadow: 0 0 0 1px #3b4f8f; }
+.bq-timer i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--gold); }
+.bq-timer i.low { background: var(--vermilion); }
+.bq-main { display: flex; align-items: center; justify-content: center; gap: 10px; min-height: 34px; }
+.bq-big { font-family: Galmuri14, sans-serif; font-size: 15px; background: var(--paper); color: var(--ink); min-width: 34px; height: 34px;
+          display: flex; align-items: center; justify-content: center; padding: 0 6px; }
+.bq-big.jp { font-family: 'Klee One', serif; font-weight: 600; font-size: 26px; }
+.bq-prompt { font-size: 12px; text-align: left; }
+.bq-prompt small { display: block; font-family: Galmuri9, sans-serif; font-size: 10px; opacity: .6; }
+.bq-typed { width: 52px; height: 34px; background: var(--paper); color: var(--ink); font-family: Galmuri14, sans-serif;
+            font-size: 15px; display: flex; align-items: center; justify-content: center; }
+.bq-typed .caret { animation: blink 1s steps(2) infinite; }
+@keyframes blink { 50% { opacity: 0; } }
+.bq-choices { display: flex; gap: 4px; }
+.bq-choice { width: 40px; height: 34px; }
+.bq-choice .jp { font-size: 20px; }
+.bq-result { margin-top: 4px; font-size: 12px; text-align: center; }
+.bq-result.ok { color: #9be3b0; }
+.bq-result.ng { color: #ffb4a6; }
+.bq-result .jp { font-size: 15px; color: var(--text); }
+.bq-result b { color: var(--gold); font-weight: normal; }
+
+.victory .final-word { pointer-events: auto; cursor: pointer; margin: 4px 0 10px; }
+.victory .final-word .jp { font-size: 40px; color: var(--paper); display: block; line-height: 1.1; }
+.victory .final-word em { font-style: normal; font-size: 12px; color: var(--gold); }
+.victory .final-word em .jp { font-size: 15px; display: inline; color: var(--text); }

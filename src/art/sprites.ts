@@ -1,4 +1,4 @@
-import { Grid, canvas, rect, px } from './pixel';
+import { Grid, PalKey, canvas, rect, px } from './pixel';
 
 // ── 언령사 (플레이어) 16×16 ─────────────────────────────
 export const PLAYER: Grid = [
@@ -505,6 +505,144 @@ export function arenaBackground(): HTMLCanvasElement {
     rect(g, lx + 4, 61, 4, 8, 'w');
     rect(g, lx + 2, 69, 8, 3, 'v');
     rect(g, lx + 1, 72, 10, 1, 'x');
+  }
+  return c;
+}
+
+// ── 보스: 야마비코(山彦) 48×48 ────────────────────────────
+function fillEllipse(g: CanvasRenderingContext2D, cx: number, cy: number, rx: number, ry: number, key: PalKey): void {
+  for (let y = Math.floor(cy - ry); y <= Math.ceil(cy + ry); y++) {
+    for (let x = Math.floor(cx - rx); x <= Math.ceil(cx + rx); x++) {
+      const dx = (x + 0.5 - cx) / rx;
+      const dy = (y + 0.5 - cy) / ry;
+      if (dx * dx + dy * dy <= 1) px(g, x, y, key);
+    }
+  }
+}
+
+/** 외곽선 1px을 두른 타원 */
+function outlinedEllipse(g: CanvasRenderingContext2D, cx: number, cy: number, rx: number, ry: number, key: PalKey): void {
+  fillEllipse(g, cx, cy, rx + 1, ry + 1, 'K');
+  fillEllipse(g, cx, cy, rx, ry, key);
+}
+
+/** shout: 입을 크게 벌리고 손을 입가에 모은 '외침' 프레임 */
+export function yamabiko(shout: boolean): HTMLCanvasElement {
+  const [c, g] = canvas(48, 48);
+  // 귀
+  for (const ex of [11, 37]) {
+    fillEllipse(g, ex, 9, 5, 6, 'K');
+    fillEllipse(g, ex, 9, 4, 5, 'B');
+    fillEllipse(g, ex, 10, 2, 3, 's');
+  }
+  // 발
+  outlinedEllipse(g, 15, 44, 5, 3, 'd');
+  outlinedEllipse(g, 33, 44, 5, 3, 'd');
+  // 몸통 (털)
+  outlinedEllipse(g, 24, 32, 17, 12, 'B');
+  for (let i = 0; i < 40; i++) px(g, 9 + ((i * 7) % 30), 24 + ((i * 11) % 18), i % 3 ? 'b' : 'd');
+  fillEllipse(g, 24, 35, 9, 7, 'b');
+  // 머리
+  outlinedEllipse(g, 24, 17, 15, 12, 'B');
+  for (let i = 0; i < 18; i++) px(g, 11 + ((i * 5) % 26), 7 + ((i * 3) % 6), 'b');
+  // 얼굴
+  fillEllipse(g, 24, 20, 10, 8, 'S');
+  fillEllipse(g, 24, 23, 8, 4, 's');
+  // 눈 (금빛)
+  for (const ex of [19, 29]) {
+    rect(g, ex - 1, 15, 3, 3, 'K');
+    px(g, ex, 16, 'G');
+  }
+  // 입
+  if (shout) {
+    fillEllipse(g, 24, 24, 5, 5, 'K');
+    fillEllipse(g, 24, 25, 3.5, 3.5, 'r');
+    rect(g, 22, 21, 5, 1, 'L');
+  } else {
+    rect(g, 21, 24, 7, 2, 'K');
+    rect(g, 22, 24, 5, 1, 'r');
+  }
+  // 손 (외칠 땐 입가로)
+  const hy = shout ? 23 : 33;
+  const hx = shout ? 11 : 7;
+  outlinedEllipse(g, hx, hy, 4, 3.5, 'd');
+  outlinedEllipse(g, 48 - hx, hy, 4, 3.5, 'd');
+  return c;
+}
+
+// ── 메아리 탄 7×7 ─────────────────────────────────────
+export const ECHO_SHOT: Grid = [
+  '..KKK..',
+  '.KPPPK.',
+  'KPLLLPK',
+  'KPLWLPK',
+  'KPLLLPK',
+  '.KPPPK.',
+  '..KKK..',
+];
+
+// ── 메아리 바닥 돌판 28×18 (상태별 테두리 색) ──────────────
+export function floorTile(edge: PalKey): HTMLCanvasElement {
+  const [c, g] = canvas(28, 18);
+  rect(g, 0, 2, 28, 16, 'x');
+  rect(g, 0, 0, 28, 16, 'K');
+  rect(g, 1, 1, 26, 14, edge);
+  rect(g, 3, 3, 22, 10, 'w');
+  rect(g, 3, 3, 22, 1, 'W');
+  rect(g, 3, 12, 22, 1, 'v');
+  return c;
+}
+
+// ── 보스 아레나: 산속 신사 마당 320×180 (카메라 고정 2배) ────────
+export const BOSS_W = 320;
+export const BOSS_H = 180;
+/** 언령사가 다닐 수 있는 타원형 돌마당 */
+export const BOSS_FLOOR = { cx: 160, cy: 114, rx: 146, ry: 58 };
+
+export function bossBackground(): HTMLCanvasElement {
+  const [c, g] = canvas(BOSS_W, BOSS_H);
+  // 밤하늘
+  rect(g, 0, 0, BOSS_W, BOSS_H, 'n');
+  rect(g, 0, 0, BOSS_W, 18, 'K');
+  for (let y = 18; y < 40; y += 3) for (let x = (y * 7) % 5; x < BOSS_W; x += 5) px(g, x, y, 'K');
+  let seed = 11;
+  const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  for (let i = 0; i < 40; i++) px(g, Math.floor(rnd() * BOSS_W), Math.floor(rnd() * 40), rnd() < 0.3 ? 'G' : 'L');
+  // 둥근 달
+  fillEllipse(g, 262, 20, 9, 9, 'W');
+  fillEllipse(g, 265, 18, 7, 7, 'L');
+  // 산 능선
+  for (let x = 0; x < BOSS_W; x++) {
+    const h1 = 44 + Math.sin(x / 23) * 8 + Math.sin(x / 9) * 3;
+    rect(g, x, Math.floor(h1), 1, BOSS_H, 'K');
+  }
+  // 돌마당 (타원)
+  const f = BOSS_FLOOR;
+  fillEllipse(g, f.cx, f.cy + 2, f.rx + 10, f.ry + 10, 'K');
+  fillEllipse(g, f.cx, f.cy, f.rx + 8, f.ry + 8, 'v');
+  fillEllipse(g, f.cx, f.cy, f.rx + 2, f.ry + 2, 'w');
+  // 돌 이음매
+  for (let y = f.cy - f.ry; y < f.cy + f.ry; y += 8) {
+    for (let x = f.cx - f.rx; x < f.cx + f.rx; x++) {
+      const dx = (x - f.cx) / f.rx;
+      const dy = (y - f.cy) / f.ry;
+      if (dx * dx + dy * dy < 1) px(g, x, y, 'v');
+    }
+  }
+  for (let y = f.cy - f.ry; y < f.cy + f.ry; y += 8) {
+    for (let x = f.cx - f.rx + ((y / 8) % 2) * 8; x < f.cx + f.rx; x += 16) {
+      const dx = (x - f.cx) / f.rx;
+      const dy = (y + 4 - f.cy) / f.ry;
+      if (dx * dx + dy * dy < 1) rect(g, x, y, 1, 8, 'v');
+    }
+  }
+  // 양쪽 석등
+  for (const lx of [10, 298]) {
+    rect(g, lx, 78, 12, 3, 'K');
+    rect(g, lx + 1, 81, 10, 7, 'v');
+    rect(g, lx + 4, 82, 4, 5, 'G');
+    rect(g, lx + 4, 88, 4, 12, 'v');
+    rect(g, lx + 2, 100, 8, 3, 'K');
   }
   return c;
 }

@@ -3,7 +3,7 @@ import { gridCanvas } from './pixel';
 import {
   PLAYER, SCROLL_SEALED, stand, hangingScrollFrames, glow, spark,
   ICON_OFUDA, ICON_SUZU, ICON_KITSUNEBI, SHOT_OFUDA, ORB_KITSUNEBI, DUMMY,
-  doorPanel, doorSeal, HITODAMA, KASA, GEM,
+  doorPanel, doorSeal, HITODAMA, KASA, GEM, yamabiko, ECHO_SHOT, floorTile,
 } from './sprites';
 
 export const TEX = {
@@ -22,6 +22,9 @@ export const TEX = {
   hitodama: (f: number) => `hitodama-${f}`,
   kasa: (f: number) => `kasa-${f}`,
   gem: 'gem',
+  yamabiko: (shout: boolean) => (shout ? 'yamabiko-shout' : 'yamabiko'),
+  echoShot: 'echo-shot',
+  tile: (state: 'idle' | 'good' | 'bad') => `tile-${state}`,
 } as const;
 
 export const HANG_FRAME_COUNT = 5;
@@ -50,4 +53,10 @@ export function registerTextures(scene: Phaser.Scene): void {
   HITODAMA.forEach((g, i) => add(scene, TEX.hitodama(i), gridCanvas(g)));
   KASA.forEach((g, i) => add(scene, TEX.kasa(i), gridCanvas(g)));
   add(scene, TEX.gem, gridCanvas(GEM));
+  add(scene, TEX.yamabiko(false), yamabiko(false));
+  add(scene, TEX.yamabiko(true), yamabiko(true));
+  add(scene, TEX.echoShot, gridCanvas(ECHO_SHOT));
+  add(scene, TEX.tile('idle'), floorTile('N'));
+  add(scene, TEX.tile('good'), floorTile('G'));
+  add(scene, TEX.tile('bad'), floorTile('R'));
 }

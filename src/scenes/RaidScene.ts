@@ -10,6 +10,7 @@ import { run, resetRaid, resetRun } from '../systems/run';
 import { createMoveKeys, readMove, MoveKeys } from '../systems/movement';
 import { makeQuiz } from '../systems/quiz';
 import { tts } from '../systems/tts';
+import { WeaponSystem, Target } from '../combat/WeaponSystem';
 
 const ZOOM = 2;
 const ROOMS = 3;
@@ -35,27 +36,14 @@ const ENEMY_DEFS: Record<EnemyKind, { hp: number; speed: number; damage: number;
   kasa: { hp: 26, speed: 26, damage: 12, frameMs: 180, radius: 7 },
 };
 
-interface Enemy {
+interface Enemy extends Target {
   kind: EnemyKind;
-  sprite: Phaser.GameObjects.Image;
-  hp: number;
   speed: number;
   /** 넉백 속도 */
   kx: number;
   ky: number;
   flashUntil: number;
-  /** 여우불에 마지막으로 맞은 시각 */
-  orbHitAt: number;
   age: number;
-}
-
-interface Shot {
-  sprite: Phaser.GameObjects.Image;
-  vx: number;
-  vy: number;
-  life: number;
-  pierce: number;
-  hit: Set<Enemy>;
 }
 
 interface Gem {
@@ -74,16 +62,13 @@ export class RaidScene extends Phaser.Scene {
   private player!: Phaser.GameObjects.Image;
   private shadow!: Phaser.GameObjects.Ellipse;
   private enemies: Enemy[] = [];
-  private shots: Shot[] = [];
   private gems: Gem[] = [];
-  private orbs: Phaser.GameObjects.Image[] = [];
-  private orbAngle = 0;
+  private weapons!: WeaponSystem;
   private barrier!: Phaser.GameObjects.Rectangle;
   private kills = 0;
   /** 이번 습격에서 버틴 시간 (레벨업으로 멈춘 시간은 빼고) */
   private elapsed = 0;
   private spawnAcc = 0;
-  private weaponAcc = 0;
   private invulnUntil = 0;
   private walkTime = 0;
   private pendingLevels = 0;
@@ -105,12 +90,9 @@ export class RaidScene extends Phaser.Scene {
     this.weapon = WEAPONS.find((w) => w.id === run.weapon)!;
     this.state = 'play';
     this.enemies = [];
-    this.shots = [];
     this.gems = [];
-    this.orbs = [];
     this.kills = 0;
     this.spawnAcc = 0;
-    this.weaponAcc = 0;
     this.invulnUntil = 0;
     this.pendingLevels = 0;
     this.hudCache = '';
@@ -125,6 +107,9 @@ export class RaidScene extends Phaser.Scene {
 
     this.shadow = this.add.ellipse(ARENA_W / 2, 210, 14, 4, 0x000000, 0.3);
     this.player = this.add.image(ARENA_W / 2, 210, TEX.player).setOrigin(0.5, 1);
+    this.weapons = new WeaponSystem(this, this.weapon, this.player, () => this.enemies, (t, dmg, fx, fy, knock) =>
+      this.damage(t as Enemy, dmg, fx, fy, knock),
+    );
 
     const cam = this.cameras.main;
     cam.setZoom(ZOOM);
@@ -185,12 +170,8 @@ export class RaidScene extends Phaser.Scene {
       this.elapsed += dt;
       if (this.elapsed >= ROOM_MS) this.clearRoom();
     }
-    if (this.state === 'play') {
-      this.spawn(dt);
-      this.fireWeapon(dt);
-    }
-    this.updateOrbs(dt);
-    this.updateShots(dt);
+    if (this.state === 'play') this.spawn(dt);
+    this.weapons.update(dt, this.state === 'play');
     this.updateEnemies(time, dt);
     this.updateGems(dt);
     if (this.state === 'play') this.checkContact(time);
@@ -258,6 +239,7 @@ export class RaidScene extends Phaser.Scene {
       sprite,
       hp: def.hp * (1 + (run.room - 1) * 0.25),
       speed: def.speed * (1 + (run.room - 1) * 0.08) * (0.9 + Math.random() * 0.2),
+      radius: def.radius,
       kx: 0,
       ky: 0,
       flashUntil: 0,
@@ -354,116 +336,6 @@ export class RaidScene extends Phaser.Scene {
         onComplete: () => s.destroy(),
       });
     }
-  }
-
-  // ── 무기 ─────────────────────────────────────────────
-
-  private fireWeapon(dt: number): void {
-    if (this.weapon.id === 'kitsunebi') return; // 여우불은 늘 돈다
-    const cd = this.weapon.base.cooldownMs * run.build.cooldown;
-    this.weaponAcc += dt;
-    if (this.weaponAcc < cd) return;
-    if (this.weapon.id === 'ofuda') {
-      if (this.throwOfuda()) this.weaponAcc = 0;
-    } else {
-      this.weaponAcc = 0;
-      for (let i = 0; i < run.build.count; i++) this.time.delayedCall(i * 200, () => this.ringPulse());
-    }
-  }
-
-  /** 가까운 요괴부터 count장. 사거리 안에 없으면 던지지 않는다 */
-  private throwOfuda(): boolean {
-    const p = this.player;
-    const range = this.weapon.base.range;
-    const targets = this.enemies
-      .map((e) => ({ e, d: Phaser.Math.Distance.Between(p.x, p.y - 8, e.sprite.x, e.sprite.y) }))
-      .filter((t) => t.d <= range)
-      .sort((a, b) => a.d - b.d)
-      .slice(0, run.build.count);
-    if (targets.length === 0) return false;
-    // 요괴가 count보다 적으면 가장 가까운 요괴에게 여러 장
-    for (let i = 0; i < run.build.count; i++) {
-      const t = targets[i % targets.length].e;
-      const a = Phaser.Math.Angle.Between(p.x, p.y - 8, t.sprite.x, t.sprite.y) + (i >= targets.length ? (i - targets.length + 1) * 0.15 : 0);
-      const sprite = this.add.image(p.x, p.y - 8, TEX.shotOfuda).setRotation(a + Math.PI / 2).setDepth(500);
-      const speed = 230;
-      this.shots.push({ sprite, vx: Math.cos(a) * speed, vy: Math.sin(a) * speed, life: 900, pierce: run.build.pierce, hit: new Set() });
-    }
-    return true;
-  }
-
-  private updateShots(dt: number): void {
-    const dmg = this.weapon.base.damage * run.build.damage;
-    for (const shot of this.shots) {
-      shot.sprite.x += (shot.vx * dt) / 1000;
-      shot.sprite.y += (shot.vy * dt) / 1000;
-      shot.life -= dt;
-      for (const e of this.enemies) {
-        if (shot.hit.has(e) || shot.life <= 0) continue;
-        if (Phaser.Math.Distance.Between(shot.sprite.x, shot.sprite.y, e.sprite.x, e.sprite.y - 3) < ENEMY_DEFS[e.kind].radius + 3) {
-          shot.hit.add(e);
-          this.damage(e, dmg, shot.sprite.x, shot.sprite.y, 60);
-          if (shot.pierce-- <= 0) shot.life = 0;
-        }
-      }
-    }
-    this.shots = this.shots.filter((s) => {
-      if (s.life > 0) return true;
-      s.sprite.destroy();
-      return false;
-    });
-  }
-
-  /** 방울: 주변을 한꺼번에 치는 원형 음파 */
-  private ringPulse(): void {
-    if (this.state !== 'play') return;
-    const p = this.player;
-    const cx = p.x;
-    const cy = p.y - 6;
-    const r = this.weapon.base.range * run.build.area;
-    const dmg = this.weapon.base.damage * run.build.damage;
-    for (const e of [...this.enemies]) {
-      if (Phaser.Math.Distance.Between(cx, cy, e.sprite.x, e.sprite.y) <= r + ENEMY_DEFS[e.kind].radius) this.damage(e, dmg, cx, cy, 90);
-    }
-    const g = this.add.graphics().setDepth(499);
-    const st = { r: 4, a: 1 };
-    this.tweens.add({
-      targets: st,
-      r,
-      a: 0,
-      duration: 280,
-      ease: 'Cubic.easeOut',
-      onUpdate: () => {
-        g.clear();
-        g.lineStyle(3, 0xf0b84a, st.a * 0.4).strokeCircle(cx, cy, st.r + 1.5);
-        g.lineStyle(1.5, 0xfffaf0, st.a).strokeCircle(cx, cy, st.r);
-      },
-      onComplete: () => g.destroy(),
-    });
-  }
-
-  /** 여우불: count개가 몸 주위를 돌며 닿는 요괴를 태운다 */
-  private updateOrbs(dt: number): void {
-    if (this.weapon.id !== 'kitsunebi') return;
-    while (this.orbs.length < run.build.count) this.orbs.push(this.add.image(0, 0, TEX.orbKitsunebi));
-    const radius = this.weapon.base.range * run.build.area;
-    const dmg = this.weapon.base.damage * run.build.damage;
-    const hitGap = this.weapon.base.cooldownMs * run.build.cooldown;
-    this.orbAngle += (dt / 1400) * Math.PI * 2 * run.build.orbitSpeed;
-    const p = this.player;
-    this.orbs.forEach((orb, k) => {
-      const a = this.orbAngle + (Math.PI * 2 * k) / this.orbs.length;
-      orb.setPosition(p.x + Math.cos(a) * radius, p.y - 8 + Math.sin(a) * radius * 0.85);
-      orb.setDepth(orb.y + 8);
-      if (this.state !== 'play') return;
-      for (const e of [...this.enemies]) {
-        if (this.time.now - e.orbHitAt < hitGap) continue;
-        if (Phaser.Math.Distance.Between(orb.x, orb.y, e.sprite.x, e.sprite.y - 3) < ENEMY_DEFS[e.kind].radius + 7) {
-          e.orbHitAt = this.time.now;
-          this.damage(e, dmg, p.x, p.y - 6, 130);
-        }
-      }
-    });
   }
 
   // ── 언령 구슬 · 레벨업 ─────────────────────────────────
@@ -593,7 +465,7 @@ export class RaidScene extends Phaser.Scene {
     const last = run.room >= ROOMS;
     banner.innerHTML = `<b>습격 ${run.room} 돌파!</b><span>결계가 풀렸다 — <em>WASD</em>로 토리이를 지나가자</span>`;
     this.time.delayedCall(3000, () => banner.remove());
-    const hint = this.ui.el('div', 'hint', `<b>WASD</b>로 위쪽 토리이를 지나 ${last ? '보스에게' : '다음 습격으로'}`);
+    const hint = this.ui.el('div', 'hint', `<b>WASD</b>로 위쪽 토리이를 지나 ${last ? '야마비코에게' : '다음 습격으로'}`);
     hint.style.opacity = '1';
   }
 
@@ -609,7 +481,7 @@ export class RaidScene extends Phaser.Scene {
         run.room++;
         this.scene.restart();
       } else {
-        this.scene.start('ComingSoon');
+        this.scene.start('Boss');
       }
     });
   }
