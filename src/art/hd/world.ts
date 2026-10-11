@@ -41,6 +41,18 @@ export function ofudaShot(): PixelGrid {
   return g;
 }
 
+// ── 여우불 12×14 ─────────────────────────────────────
+export function foxfire(): PixelGrid {
+  const g = new PixelGrid(12, 14);
+  g.poly([[2, 9], [6, 0], [10, 9]], 'C');
+  g.ellipse(6, 9, 4.5, 4, 'C');
+  g.poly([[4, 9], [6, 4], [8, 9]], 'L');
+  g.ellipse(6, 9.5, 2.5, 2.5, 'L');
+  g.set(6, 9, 'W');
+  g.outline('c');
+  return g;
+}
+
 // ── 장애물 ─────────────────────────────────────────────
 export function stoneLantern(): PixelGrid {
   const g = new PixelGrid(24, 40);

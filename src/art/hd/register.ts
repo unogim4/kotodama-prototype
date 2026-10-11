@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { sheet } from './grid';
 import { playerFrames, PLAYER_FRAMES } from './player';
-import { hitodamaFrames, makiwara, ofudaShot, stoneLantern, rock, pine, dust } from './world';
+import { hitodamaFrames, makiwara, ofudaShot, foxfire, stoneLantern, rock, pine, dust } from './world';
 
 /** 32px 리마스터 텍스처 키 */
 export const HD = {
@@ -9,6 +9,7 @@ export const HD = {
   hitodama: 'hd-hitodama',
   makiwara: 'hd-makiwara',
   ofuda: 'hd-ofuda',
+  foxfire: 'hd-foxfire',
   lantern: 'hd-lantern',
   rock: 'hd-rock',
   pine: 'hd-pine',
@@ -32,10 +33,11 @@ export function registerHd(scene: Phaser.Scene): void {
   addSheet(scene, HD.hitodama, sheet(hitodamaFrames()), 24, 24);
   addImage(scene, HD.makiwara, makiwara().toCanvas());
   addImage(scene, HD.ofuda, ofudaShot().toCanvas());
+  addImage(scene, HD.foxfire, foxfire().toCanvas());
   addImage(scene, HD.lantern, stoneLantern().toCanvas());
   addImage(scene, HD.rock, rock().toCanvas());
   addImage(scene, HD.pine, pine().toCanvas());
-  for (const k of ['w', 'W', 'v', 'P', 'L', 'G']) addImage(scene, HD.dust(k), dust(k as never));
+  for (const k of ['w', 'W', 'v', 'P', 'L', 'G', 'C']) addImage(scene, HD.dust(k), dust(k as never));
 
   const a = scene.anims;
   const mk = (key: string, frames: readonly number[], frameRate: number, repeat = -1) => {

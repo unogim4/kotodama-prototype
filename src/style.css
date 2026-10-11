@@ -300,3 +300,15 @@ button.ucard:hover { border-color: var(--gold); background: #33417a; }
 .sb-legend .gold { color: var(--gold); }
 .sb-back { right: 10px; top: 8px; }
 .title-sample { left: 10px; bottom: 6px; }
+.sb-legend small { opacity: .6; }
+.sb-legend { pointer-events: auto; transition: opacity .4s; }
+.sb-legend.faded { opacity: .2; }
+.sb-legend.faded:hover { opacity: 1; }
+.arms-slots { left: 8px; bottom: 8px; display: flex; gap: 4px; }
+.arms-slot { width: 58px; height: 34px; background: rgba(27,22,38,.82); border: 1px solid #3b4f8f; position: relative; }
+.arms-slot.empty { opacity: .45; border-style: dashed; }
+.arms-slot span { position: absolute; left: 3px; top: 3px; font-size: 13px; }
+.arms-slot b { position: absolute; left: 21px; top: 4px; font-family: Galmuri9, sans-serif; font-size: 10px; font-weight: normal; }
+.arms-slot em { position: absolute; left: 4px; right: 4px; bottom: 4px; display: flex; gap: 2px; }
+.arms-slot em i { flex: 1; height: 4px; background: #26335f; border: 1px solid var(--ink); }
+.arms-slot em i.on { background: var(--gold); }
