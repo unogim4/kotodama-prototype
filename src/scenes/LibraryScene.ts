@@ -22,6 +22,8 @@ interface Slot {
   x: number;
   sealed: Phaser.GameObjects.Image;
   hung?: Phaser.GameObjects.Image;
+  /** 벽 족자 위의 글자 (DOM) */
+  label?: HTMLElement;
   opened: boolean;
 }
 
@@ -45,7 +47,6 @@ export class LibraryScene extends Phaser.Scene {
   private pips: HTMLElement[] = [];
   private hint!: HTMLElement;
   private tooltip!: HTMLElement;
-  private wallLabels: HTMLElement[] = [];
 
   constructor() {
     super('Library');
@@ -55,7 +56,6 @@ export class LibraryScene extends Phaser.Scene {
     this.slots = [];
     this.reveal = null;
     this.completed = false;
-    this.wallLabels = [];
 
     const cam = this.cameras.main;
     cam.setZoom(ZOOM);
@@ -124,6 +124,7 @@ export class LibraryScene extends Phaser.Scene {
     this.hideTooltip();
     this.hint.style.opacity = '0';
     this.ui.root.classList.add('dimmed');
+    this.coverWallLabels(true);
 
     const dim = this.add.rectangle(0, 0, LIB_W, LIB_H, 0x0c0a12, 0.78).setOrigin(0).setDepth(10).setAlpha(0).setInteractive();
     dim.on('pointerdown', () => this.reveal?.ready && this.closeReveal());
@@ -156,6 +157,17 @@ export class LibraryScene extends Phaser.Scene {
         this.unroll(hang);
       },
     });
+  }
+
+  /**
+   * 벽 글자는 캔버스 위 DOM이라 펼침 화면의 족자보다 앞에 그려진다.
+   * 펼침 족자와 겹치는 글자는 완전히 숨긴다 (나머지는 dimmed로 흐리게).
+   */
+  private coverWallLabels(cover: boolean): void {
+    const reach = (HANG_W * REVEAL_SCALE + HANG_W) / 2;
+    for (const s of this.slots) {
+      s.label?.classList.toggle('covered', cover && Math.abs(s.x - LIB_W / 2) < reach);
+    }
   }
 
   /** 족자 프레임을 차례로 넘겨 아래로 펼친다 */
@@ -242,6 +254,7 @@ export class LibraryScene extends Phaser.Scene {
       onComplete: () => [r.dim, r.hang, r.glow].forEach((o) => o.destroy()),
     });
     this.ui.root.classList.remove('dimmed');
+    this.coverWallLabels(false);
 
     if (!r.slot.opened) this.hangOnWall(r.slot);
     this.reveal = null;
@@ -266,9 +279,8 @@ export class LibraryScene extends Phaser.Scene {
 
     const label = this.ui.el('div', 'glyph wall-glyph', slot.kana.kana);
     label.style.fontSize = '28px';
-    label.style.opacity = '0';
     this.ui.place(label, screen(slot.x), screen(HOOK_Y + HANG_PAPER_CENTER.y));
-    this.wallLabels.push(label);
+    slot.label = label;
 
     this.tweens.add({
       targets: hung,
@@ -276,7 +288,7 @@ export class LibraryScene extends Phaser.Scene {
       alpha: 1,
       duration: 300,
       ease: 'Back.easeOut',
-      onComplete: () => (label.style.opacity = '1'),
+      onComplete: () => label.classList.add('shown'),
     });
 
     const i = this.slots.indexOf(slot);

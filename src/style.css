@@ -60,8 +60,11 @@ html, body { margin: 0; height: 100%; background: #0c0a12; overflow: hidden; }
 .btn small { opacity: .6; margin-left: 4px; }
 .notice { left: 0; right: 0; top: 248px; text-align: center; font-size: 10px; color: var(--gold); }
 
-.wall-glyph { transition: opacity .25s; }
-.scene-ui.dimmed .wall-glyph, .scene-ui.dimmed .hud-title, .scene-ui.dimmed .hud-progress { opacity: .25; }
+.wall-glyph { opacity: 0; transition: opacity .25s; }
+.wall-glyph.shown { opacity: 1; }
+.scene-ui.dimmed .wall-glyph.shown, .scene-ui.dimmed .hud-title, .scene-ui.dimmed .hud-progress { opacity: .25; }
+/* 펼침 족자와 겹치는 벽 글자는 즉시 숨김 */
+.scene-ui.dimmed .wall-glyph.shown.covered { opacity: 0; transition: none; }
 
 /* ── 완료 / 패널 ── */
 .panel { left: 50%; top: 50%; transform: translate(-50%, -50%); background: var(--ink);
