@@ -8,6 +8,10 @@
 - 기획 문서: [기획서.md](기획서.md)
 - 제작도 (진행 현황 트리): [제작도.md](제작도.md)
 
+## 바로 플레이
+
+👉 **https://unogim4.github.io/kotodama-roguelike/** (main에 푸시하면 자동 배포)
+
 ## 실행 방법
 
 ```bash
