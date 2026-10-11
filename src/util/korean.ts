@@ -10,3 +10,8 @@ export function withRo(word: string): string {
   const f = finalConsonant(word);
   return word + (f === 0 || f === 8 ? '로' : '으로');
 }
+
+/** 조사 '을/를': 받침이 있으면 '을' (부적을), 없으면 '를' */
+export function withEul(word: string): string {
+  return word + (finalConsonant(word) === 0 ? '를' : '을');
+}

@@ -4,7 +4,7 @@ import { WeaponPreview } from '../ui/WeaponPreview';
 import { WEAPONS, STAT_LABELS, WeaponDef } from '../data/weapons';
 import { TEX } from '../art/textures';
 import { run } from '../systems/run';
-import { withRo } from '../util/korean';
+import { withRo, withEul } from '../util/korean';
 
 const CARD_W = 180;
 const CARD_H = 266;
@@ -17,6 +17,7 @@ interface Card {
   def: WeaponDef;
   el: HTMLElement;
   canvasParts: Phaser.GameObjects.GameObject[];
+  icon: Phaser.GameObjects.Image;
   preview: WeaponPreview;
 }
 
@@ -33,6 +34,7 @@ export class WeaponSelectScene extends Phaser.Scene {
   }
 
   create(): void {
+    this.cameras.main.fadeIn(300, 12, 10, 18);
     this.cards = [];
     this.selected = null;
     this.confirmed = false;
@@ -91,7 +93,7 @@ export class WeaponSelectScene extends Phaser.Scene {
     }
     this.ui.el('div', 'wkey', `[${index + 1}] 선택`, el);
 
-    const card: Card = { def, el, canvasParts: [g, icon, preview.container], preview };
+    const card: Card = { def, el, canvasParts: [g, icon, preview.container], icon, preview };
     el.addEventListener('click', () => (this.selected === card ? this.confirm() : this.select(card)));
     this.cards.push(card);
   }
@@ -118,18 +120,56 @@ export class WeaponSelectScene extends Phaser.Scene {
     if (!card || this.confirmed) return;
     this.confirmed = true;
     run.weapon = card.def.id;
-
     this.goButton.disabled = true;
-    for (const c of this.cards) {
-      if (c === card) {
-        c.el.classList.add('chosen');
-      } else {
-        c.el.classList.add('faded');
-        this.tweens.add({ targets: c.canvasParts, alpha: 0.2, duration: 250 });
-      }
+
+    // 카드는 모두 물러나고, 고른 무기 아이콘이 가운데로 날아와 커진다
+    this.ui.root.classList.add('acquiring');
+    this.tweens.add({ targets: this.cards.flatMap((c) => c.canvasParts), alpha: 0, duration: 300 });
+    const veil = this.add.rectangle(0, 0, 640, 360, 0x0c0a12, 0.6).setOrigin(0).setAlpha(0);
+    this.tweens.add({ targets: veil, alpha: 1, duration: 300 });
+
+    const cx = 320;
+    const cy = 150;
+    const glow = this.add.image(cx, cy, TEX.glow).setScale(0).setAlpha(0);
+    const icon = this.add.image(card.icon.x, card.icon.y, TEX.icon(card.def.id)).setScale(2);
+    this.tweens.add({
+      targets: icon,
+      x: cx,
+      y: cy,
+      scale: 6,
+      duration: 550,
+      ease: 'Back.easeOut',
+      onComplete: () => {
+        this.cameras.main.flash(300, 240, 184, 74);
+        this.burst(cx, cy);
+        this.tweens.add({ targets: glow, scale: 3.4, alpha: 1, duration: 350, ease: 'Back.easeOut' });
+        this.tweens.add({ targets: glow, scale: 3, duration: 900, yoyo: true, repeat: -1, delay: 350, ease: 'Sine.easeInOut' });
+        this.tweens.add({ targets: icon, y: cy - 4, duration: 900, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+
+        const text = this.ui.el('div', 'acquire fade-up');
+        this.ui.el('div', 'acq-name', `${card.def.name} <span class="jp">${card.def.jp}</span>`, text);
+        this.ui.el('div', 'acq-sub', `첫 무기로 ${withEul(card.def.name)} 손에 넣었다`, text);
+      },
+    });
+
+    this.time.delayedCall(2300, () => this.cameras.main.fadeOut(400, 12, 10, 18));
+    this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => this.scene.start('Raid'));
+  }
+
+  private burst(x: number, y: number): void {
+    for (let i = 0; i < 16; i++) {
+      const a = (Math.PI * 2 * i) / 16 + Math.random() * 0.2;
+      const d = 70 + Math.random() * 40;
+      const s = this.add.image(x, y, TEX.spark).setScale(2);
+      this.tweens.add({
+        targets: s,
+        x: x + Math.cos(a) * d,
+        y: y + Math.sin(a) * d,
+        alpha: 0,
+        duration: 700 + Math.random() * 300,
+        ease: 'Cubic.easeOut',
+        onComplete: () => s.destroy(),
+      });
     }
-    this.cameras.main.flash(250, 240, 184, 74);
-    this.time.delayedCall(800, () => this.cameras.main.fadeOut(300, 12, 10, 18));
-    this.time.delayedCall(1150, () => this.scene.start('Raid'));
   }
 }

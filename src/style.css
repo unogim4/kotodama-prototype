@@ -105,3 +105,24 @@ html, body { margin: 0; height: 100%; background: #0c0a12; overflow: hidden; }
 .ws-go { left: 50%; top: 328px; transform: translateX(-50%); }
 .btn:disabled { opacity: .45; cursor: default; filter: grayscale(.6); }
 .panel b { color: var(--gold); font-weight: normal; }
+
+/* ── 서고 문 ── */
+.door-arrow { color: var(--gold); font-size: 12px; transform: translate(-50%, 0); text-shadow: 1px 1px 0 var(--ink);
+              animation: bob .8s ease-in-out infinite alternate; }
+@keyframes bob { from { margin-top: 0; } to { margin-top: 4px; } }
+
+/* ── 무기 획득 연출 ── */
+.acquiring .wcard, .acquiring .ws-title, .acquiring .ws-sub, .acquiring .ws-go { opacity: 0; pointer-events: none; transition: opacity .3s; }
+.acquire { left: 0; right: 0; top: 232px; text-align: center; text-shadow: 1px 1px 0 var(--ink); }
+.acq-name { font-family: Galmuri14, sans-serif; font-size: 15px; color: var(--gold); margin-bottom: 6px; }
+.acq-name .jp { font-size: 18px; color: var(--text); margin-left: 4px; }
+.acq-sub { font-size: 12px; }
+.fade-up { animation: fadeUp .4s ease-out both; }
+@keyframes fadeUp { from { opacity: 0; margin-top: 6px; } to { opacity: 1; margin-top: 0; } }
+
+/* ── 습격 제작 예정 (프로토타입 끝) ── */
+.raid-end { left: 0; right: 0; top: 184px; text-align: center; }
+.raid-title { font-family: Galmuri14, sans-serif; font-size: 15px; color: var(--gold); margin-bottom: 8px; text-shadow: 1px 1px 0 var(--ink); }
+.raid-end p { margin: 0 0 14px; font-size: 12px; line-height: 1.7; }
+.raid-end b { color: var(--gold); font-weight: normal; }
+.raid-end .row { display: flex; gap: 8px; justify-content: center; }

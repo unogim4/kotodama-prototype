@@ -131,7 +131,9 @@ export const LIB_W = 320;
 export const LIB_H = 180;
 export const LIB_FLOOR_Y = 84;
 
-export function libraryBackground(hookXs: number[], hookY: number): HTMLCanvasElement {
+export interface DoorRect { x: number; y: number; w: number; h: number }
+
+export function libraryBackground(hookXs: number[], hookY: number, door: DoorRect): HTMLCanvasElement {
   const [c, g] = canvas(LIB_W, LIB_H);
 
   // 벽
@@ -150,7 +152,7 @@ export function libraryBackground(hookXs: number[], hookY: number): HTMLCanvasEl
   }
 
   // 양쪽 책장
-  for (const sx of [6, 284]) {
+  for (const sx of [6]) {
     rect(g, sx, 20, 32, 64, 'd');
     rect(g, sx + 1, 21, 30, 62, 'K');
     for (let s = 0; s < 4; s++) {
@@ -164,6 +166,13 @@ export function libraryBackground(hookXs: number[], hookY: number): HTMLCanvasEl
       }
     }
   }
+
+  // 오른쪽 문간: 상인방 + 어두운 안쪽 (장지문은 따로 그려 움직인다)
+  rect(g, door.x - 2, door.y - 5, door.w + 4, 5, 'K');
+  rect(g, door.x - 1, door.y - 4, door.w + 2, 3, 'B');
+  rect(g, door.x - 1, door.y - 4, door.w + 2, 1, 'b');
+  rect(g, door.x, door.y, door.w, door.h, 'K');
+  for (let i = 0; i < 4; i++) rect(g, door.x + 3 + i * 2, door.y + 30 + i * 7, door.w - 6 - i * 4, 1, 'n');
 
   // 족자 걸이(금 고리)
   for (const x of hookXs) {
@@ -293,3 +302,50 @@ export const DUMMY: Grid = [
   '....KKKKKKKK....',
   '....xxxxxxxx....',
 ];
+
+// ── 서고 문: 장지문 한 짝 15×60 ─────────────────────────
+export function doorPanel(): HTMLCanvasElement {
+  const W = 15, H = 60;
+  const [c, g] = canvas(W, H);
+  rect(g, 0, 0, W, H, 'd');
+  rect(g, 1, 1, W - 2, H - 2, 'W');
+  rect(g, 1, 1, 1, H - 2, 'L');
+  // 살(格子)
+  for (const x of [5, 9]) rect(g, x, 1, 1, 46, 'B');
+  for (let y = 10; y < 47; y += 9) rect(g, 1, y, W - 2, 1, 'B');
+  // 아래 널판
+  rect(g, 1, 47, W - 2, 12, 'B');
+  rect(g, 1, 47, W - 2, 1, 'd');
+  rect(g, 2, 49, W - 4, 1, 'b');
+  // 손잡이 홈 (문이 만나는 쪽)
+  rect(g, W - 4, 28, 2, 4, 'K');
+  return c;
+}
+
+// ── 서고 문 봉인: 금줄 + 시데 + 부적 34×20 ─────────────────
+export function doorSeal(): HTMLCanvasElement {
+  const W = 34, H = 20;
+  const [c, g] = canvas(W, H);
+  // 꼬인 금줄
+  rect(g, 0, 2, W, 4, 'K');
+  for (let x = 1; x < W - 1; x++) {
+    px(g, x, 3, x % 3 === 0 ? 'g' : 'G');
+    px(g, x, 4, x % 3 === 1 ? 'g' : 'G');
+  }
+  // 시데(번개 모양 종이)
+  for (const sx of [5, 26]) {
+    const zig = [[0, 6], [0, 7], [1, 8], [2, 9], [2, 10], [1, 11], [0, 12], [0, 13], [1, 14]];
+    for (const [dx, y] of zig) {
+      rect(g, sx + dx, y, 3, 1, 'L');
+      px(g, sx + dx + 3, y, 'K');
+    }
+  }
+  // 가운데 부적
+  rect(g, 14, 4, 6, 15, 'K');
+  rect(g, 15, 5, 4, 13, 'W');
+  rect(g, 16, 6, 2, 2, 'R');
+  rect(g, 16, 9, 2, 1, 'R');
+  rect(g, 16, 11, 1, 3, 'R');
+  rect(g, 17, 14, 1, 2, 'R');
+  return c;
+}

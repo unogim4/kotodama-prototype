@@ -17,6 +17,13 @@ const HOOK_Y = 22;
 const REVEAL_SCALE = 2;
 const REVEAL_TOP = 34;
 const BG_KEY = 'library-bg';
+/** 오른쪽 벽의 문 (다음 방 = 무기 선택) */
+const DOOR = { x: 284, y: 22, w: 30, h: 60 };
+const DOOR_CX = DOOR.x + DOOR.w / 2;
+const PLAYER_X = 160;
+const PLAYER_Y = 168;
+/** 걷는 속도 (월드 px/초) */
+const WALK_SPEED = 80;
 
 interface Slot {
   kana: Kana;
@@ -37,6 +44,14 @@ interface Reveal {
   ready: boolean;
 }
 
+interface Door {
+  left: Phaser.GameObjects.Image;
+  right: Phaser.GameObjects.Image;
+  seal: Phaser.GameObjects.Image;
+  glow: Phaser.GameObjects.Image;
+  open: boolean;
+}
+
 /** 월드 좌표 → 640×360 화면 좌표 */
 const screen = (v: number) => v * ZOOM;
 
@@ -48,6 +63,12 @@ export class LibraryScene extends Phaser.Scene {
   private pips: HTMLElement[] = [];
   private hint!: HTMLElement;
   private tooltip!: HTMLElement;
+  private player!: Phaser.GameObjects.Image;
+  private shadow!: Phaser.GameObjects.Ellipse;
+  private playerBob!: Phaser.Tweens.Tween;
+  private door!: Door;
+  private panel: HTMLElement | null = null;
+  private leaving = false;
 
   constructor() {
     super('Library');
@@ -57,31 +78,57 @@ export class LibraryScene extends Phaser.Scene {
     this.slots = [];
     this.reveal = null;
     this.completed = false;
+    this.panel = null;
+    this.leaving = false;
 
     const cam = this.cameras.main;
     cam.setZoom(ZOOM);
     cam.centerOn(LIB_W / 2, LIB_H / 2);
 
-    if (!this.textures.exists(BG_KEY)) this.textures.addCanvas(BG_KEY, libraryBackground(STAND_XS, HOOK_Y));
+    if (!this.textures.exists(BG_KEY)) this.textures.addCanvas(BG_KEY, libraryBackground(STAND_XS, HOOK_Y, DOOR));
     this.add.image(0, 0, BG_KEY).setOrigin(0);
 
     this.ui = new UILayer(this);
-    this.createPlayer();
+    this.createDoor();
     ROW_A.forEach((kana, i) => this.createSlot(kana, i));
+    this.createPlayer();
     this.createHud();
 
     const kb = this.input.keyboard!;
     kb.on('keydown-SPACE', () => this.reveal?.ready && this.speak(this.reveal.slot.kana));
-    kb.on('keydown-ENTER', () => this.reveal?.ready && this.closeReveal());
+    kb.on('keydown-ENTER', () => {
+      if (this.reveal?.ready) this.closeReveal();
+      else if (this.panel) this.closePanel();
+    });
     kb.on('keydown-ESC', () => this.reveal?.ready && this.closeReveal());
   }
 
   // ── 배치 ─────────────────────────────────────────────
 
   private createPlayer(): void {
-    this.add.ellipse(160, 168, 14, 4, 0x000000, 0.3);
-    const player = this.add.image(160, 168, TEX.player).setOrigin(0.5, 1);
-    this.tweens.add({ targets: player, y: 167, duration: 700, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+    this.shadow = this.add.ellipse(PLAYER_X, PLAYER_Y, 14, 4, 0x000000, 0.3);
+    this.player = this.add.image(PLAYER_X, PLAYER_Y, TEX.player).setOrigin(0.5, 1);
+    this.playerBob = this.tweens.add({ targets: this.player, y: PLAYER_Y - 1, duration: 700, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+  }
+
+  /** 오른쪽 장지문. 두루마리를 모두 펼치기 전엔 금줄로 봉인되어 있다 */
+  private createDoor(): void {
+    const glow = this.add.image(DOOR_CX, DOOR.y + DOOR.h / 2, TEX.glow).setAlpha(0).setScale(0.6);
+    const left = this.add.image(DOOR.x, DOOR.y, TEX.doorPanel).setOrigin(0);
+    const right = this.add.image(DOOR.x + DOOR.w / 2, DOOR.y, TEX.doorPanel).setOrigin(0).setFlipX(true);
+    // 문짝은 문간 밖으로 미끄러져 사라진다
+    const mask = this.make.graphics({}, false).fillRect(DOOR.x, DOOR.y, DOOR.w, DOOR.h).createGeometryMask();
+    left.setMask(mask);
+    right.setMask(mask);
+    const seal = this.add.image(DOOR_CX, DOOR.y + 16, TEX.doorSeal);
+    this.door = { left, right, seal, glow, open: false };
+
+    const zone = this.add.zone(DOOR.x - 2, DOOR.y - 4, DOOR.w + 4, DOOR.h + 10).setOrigin(0).setInteractive({ useHandCursor: true });
+    zone.on('pointerover', () =>
+      this.showTooltipAt(DOOR.x + DOOR.w, DOOR.y + DOOR.h + 13, this.door.open ? '다음 방으로 ▶' : '봉인된 문 · 두루마리를 모두 펼치면 열린다', 'right'),
+    );
+    zone.on('pointerout', () => this.hideTooltip());
+    zone.on('pointerdown', () => (this.door.open ? this.enterDoor() : this.rattleSeal()));
   }
 
   private createSlot(kana: Kana, i: number): void {
@@ -107,11 +154,17 @@ export class LibraryScene extends Phaser.Scene {
   }
 
   private showTooltip(slot: Slot, text: string): void {
-    if (this.reveal) return;
+    const y = slot.opened ? HOOK_Y + HANG_H + 2 : STAND_Y - 22;
+    this.showTooltipAt(slot.x, y, text);
+  }
+
+  /** align 'right'면 x가 툴팁의 오른쪽 끝 (화면 가장자리용) */
+  private showTooltipAt(x: number, y: number, text: string, align: 'center' | 'right' = 'center'): void {
+    if (this.reveal || this.panel || this.leaving) return;
     this.tooltip.textContent = text;
     this.tooltip.style.display = '';
-    const y = slot.opened ? HOOK_Y + HANG_H + 2 : STAND_Y - 22;
-    this.ui.place(this.tooltip, screen(slot.x), screen(y));
+    this.tooltip.style.transform = align === 'right' ? 'translate(-100%, 0)' : '';
+    this.ui.place(this.tooltip, screen(x), screen(y));
   }
 
   private hideTooltip(): void {
@@ -121,7 +174,7 @@ export class LibraryScene extends Phaser.Scene {
   // ── 펼침 ─────────────────────────────────────────────
 
   private openReveal(slot: Slot): void {
-    if (this.reveal) return;
+    if (this.reveal || this.panel || this.leaving) return;
     this.hideTooltip();
     this.hint.style.opacity = '0';
     this.ui.root.classList.add('dimmed');
@@ -262,7 +315,6 @@ export class LibraryScene extends Phaser.Scene {
 
     if (!this.completed && this.slots.every((s) => s.opened)) {
       this.completed = true;
-      run.learned = this.slots.map((sl) => sl.kana.kana);
       this.time.delayedCall(450, () => this.showComplete());
     }
   }
@@ -298,24 +350,86 @@ export class LibraryScene extends Phaser.Scene {
     this.pips[i].textContent = slot.kana.kana;
   }
 
-  // ── 완료 ─────────────────────────────────────────────
+  // ── 완료 · 문 ───────────────────────────────────────
 
   private showComplete(): void {
+    run.learned = this.slots.map((sl) => sl.kana.kana);
     this.ui.root.classList.add('dimmed');
     const panel = this.ui.el('div', 'panel fade-in');
     this.ui.el('h2', '', '봉인 해제 완료', panel);
-    this.ui.el('p', '', 'あ행의 언령 다섯 개를 손에 넣었다.<br>이제 첫 무기를 고를 차례다.', panel);
+    this.ui.el('p', '', 'あ행의 언령 다섯 개를 손에 넣었다.<br>오른쪽 문의 봉인이 풀린다.', panel);
     const row = this.ui.el('div', 'row', '', panel);
     ROW_A.forEach((k) => this.ui.el('div', 'kana', k.kana, row));
     const btns = this.ui.el('div', 'row', '', panel);
     btns.style.marginBottom = '0';
-    this.ui.button('서고 둘러보기', () => {
-      panel.remove();
-      this.ui.root.classList.remove('dimmed');
-      const next = this.ui.button('무기 선택 ▶', () => this.scene.start('WeaponSelect'), 'primary');
-      next.style.right = '12px';
-      next.style.bottom = '10px';
-    }, '', btns);
-    this.ui.button('무기 선택 ▶', () => this.scene.start('WeaponSelect'), 'primary', btns);
+    this.ui.button('확인<small>Enter</small>', () => this.closePanel(), 'primary', btns);
+    this.panel = panel;
+  }
+
+  private closePanel(): void {
+    if (!this.panel) return;
+    this.panel.remove();
+    this.panel = null;
+    this.ui.root.classList.remove('dimmed');
+    this.unlockDoor();
+  }
+
+  /** 봉인 전에 문을 누르면 금줄이 흔들린다 */
+  private rattleSeal(): void {
+    const { seal } = this.door;
+    this.tweens.killTweensOf(seal);
+    seal.x = DOOR_CX;
+    this.tweens.add({ targets: seal, x: DOOR_CX + 1, duration: 50, yoyo: true, repeat: 3, onComplete: () => (seal.x = DOOR_CX) });
+  }
+
+  /** 금줄이 타올라 사라지고 장지문이 양옆으로 열린다 */
+  private unlockDoor(): void {
+    const d = this.door;
+    this.tweens.add({ targets: d.seal, y: d.seal.y - 6, alpha: 0, duration: 400, ease: 'Cubic.easeIn' });
+    this.burstSparks(DOOR_CX, d.seal.y);
+    this.tweens.add({ targets: d.left, x: DOOR.x - DOOR.w / 2, duration: 600, delay: 350, ease: 'Cubic.easeInOut' });
+    this.tweens.add({ targets: d.right, x: DOOR.x + DOOR.w, duration: 600, delay: 350, ease: 'Cubic.easeInOut' });
+    this.tweens.add({
+      targets: d.glow,
+      alpha: 0.85,
+      scale: 0.7,
+      duration: 500,
+      delay: 600,
+      onComplete: () => {
+        d.open = true;
+        this.tweens.add({ targets: d.glow, scale: 0.6, duration: 900, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+        const arrow = this.ui.el('div', 'door-arrow', '▲');
+        this.ui.place(arrow, screen(DOOR_CX), screen(DOOR.y + DOOR.h + 4));
+        this.hint.textContent = '오른쪽 문을 눌러 다음 방으로';
+        this.hint.style.opacity = '1';
+      },
+    });
+  }
+
+  /** 언령사가 문까지 걸어가 들어간다 → 무기 선택 */
+  private enterDoor(): void {
+    if (this.leaving || this.reveal || this.panel) return;
+    this.leaving = true;
+    this.hideTooltip();
+    this.hint.style.opacity = '0';
+    this.ui.root.querySelector('.door-arrow')?.remove();
+    this.playerBob.stop();
+    this.player.y = PLAYER_Y;
+
+    const walk = (x: number, y: number, onComplete: () => void) => {
+      const ms = (Phaser.Math.Distance.Between(this.player.x, this.player.y, x, y) / WALK_SPEED) * 1000;
+      this.tweens.add({ targets: this.player, x, y, duration: ms, onComplete });
+      this.tweens.add({ targets: this.shadow, x, y, duration: ms });
+      // 걸음마다 살짝 통통
+      this.tweens.add({ targets: this.player, scaleY: 0.92, duration: 110, yoyo: true, repeat: Math.max(0, Math.floor(ms / 220) - 1) });
+    };
+
+    walk(DOOR_CX, PLAYER_Y, () =>
+      walk(DOOR_CX, DOOR.y + DOOR.h + 6, () => {
+        this.tweens.add({ targets: [this.player, this.shadow], y: DOOR.y + DOOR.h - 4, alpha: 0, duration: 300 });
+        this.cameras.main.fadeOut(450, 12, 10, 18);
+        this.cameras.main.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, () => this.scene.start('WeaponSelect'));
+      }),
+    );
   }
 }

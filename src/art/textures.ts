@@ -3,6 +3,7 @@ import { gridCanvas } from './pixel';
 import {
   PLAYER, SCROLL_SEALED, stand, hangingScrollFrames, glow, spark,
   ICON_OFUDA, ICON_SUZU, ICON_KITSUNEBI, SHOT_OFUDA, ORB_KITSUNEBI, DUMMY,
+  doorPanel, doorSeal,
 } from './sprites';
 
 export const TEX = {
@@ -16,6 +17,8 @@ export const TEX = {
   shotOfuda: 'shot-ofuda',
   orbKitsunebi: 'orb-kitsunebi',
   dummy: 'dummy',
+  doorPanel: 'door-panel',
+  doorSeal: 'door-seal',
 } as const;
 
 export const HANG_FRAME_COUNT = 5;
@@ -39,4 +42,6 @@ export function registerTextures(scene: Phaser.Scene): void {
   add(scene, TEX.shotOfuda, gridCanvas(SHOT_OFUDA));
   add(scene, TEX.orbKitsunebi, gridCanvas(ORB_KITSUNEBI));
   add(scene, TEX.dummy, gridCanvas(DUMMY));
+  add(scene, TEX.doorPanel, doorPanel());
+  add(scene, TEX.doorSeal, doorSeal());
 }
