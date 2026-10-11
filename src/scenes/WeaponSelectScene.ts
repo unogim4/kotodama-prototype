@@ -54,8 +54,8 @@ export class WeaponSelectScene extends Phaser.Scene {
 
     const kb = this.input.keyboard!;
     ['ONE', 'TWO', 'THREE'].forEach((k, i) => kb.on(`keydown-${k}`, () => this.select(this.cards[i])));
-    kb.on('keydown-LEFT', () => this.step(-1));
-    kb.on('keydown-RIGHT', () => this.step(1));
+    ['LEFT', 'A'].forEach((k) => kb.on(`keydown-${k}`, () => this.step(-1)));
+    ['RIGHT', 'D'].forEach((k) => kb.on(`keydown-${k}`, () => this.step(1)));
     kb.on('keydown-ENTER', () => this.confirm());
   }
 

@@ -126,3 +126,4 @@ html, body { margin: 0; height: 100%; background: #0c0a12; overflow: hidden; }
 .raid-end p { margin: 0 0 14px; font-size: 12px; line-height: 1.7; }
 .raid-end b { color: var(--gold); font-weight: normal; }
 .raid-end .row { display: flex; gap: 8px; justify-content: center; }
+.hint b { color: var(--gold); font-weight: normal; }
