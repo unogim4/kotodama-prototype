@@ -46,10 +46,10 @@ html, body { margin: 0; height: 100%; background: #0c0a12; overflow: hidden; }
            white-space: nowrap; border: 1px solid #3b4f8f; }
 
 /* ── 펼침 화면 ── */
-.reveal-caption { left: 0; right: 0; top: 262px; text-align: center; font-family: Galmuri14, sans-serif; font-size: 15px;
+.reveal-caption { left: 0; right: 0; top: 254px; text-align: center; font-family: Galmuri14, sans-serif; font-size: 15px;
                   text-shadow: 1px 1px 0 var(--ink); opacity: 0; transition: opacity .3s; }
 .reveal-caption b { color: var(--gold); font-weight: normal; }
-.reveal-buttons { left: 0; right: 0; top: 292px; display: flex; gap: 8px; justify-content: center;
+.reveal-buttons { left: 0; right: 0; top: 304px; display: flex; gap: 8px; justify-content: center;
                   opacity: 0; transition: opacity .3s; }
 .btn { pointer-events: auto; cursor: pointer; font-family: Galmuri11, sans-serif; font-size: 12px;
        color: var(--text); background: var(--navy); border: 1px solid var(--ink);
@@ -58,7 +58,7 @@ html, body { margin: 0; height: 100%; background: #0c0a12; overflow: hidden; }
 .btn.primary { background: #8f2a20; box-shadow: inset 0 -2px 0 #5e1b14, 0 0 0 1px var(--vermilion); }
 .btn.primary:hover { background: var(--vermilion); }
 .btn small { opacity: .6; margin-left: 4px; }
-.notice { left: 0; right: 0; top: 248px; text-align: center; font-family: Galmuri9, sans-serif; font-size: 10px; color: var(--gold); }
+.notice { left: 0; right: 0; top: 238px; text-align: center; font-family: Galmuri9, sans-serif; font-size: 10px; color: var(--gold); }
 
 .wall-glyph { opacity: 0; transition: opacity .25s; }
 .wall-glyph.shown { opacity: 1; }
@@ -242,6 +242,7 @@ button.ucard:hover { border-color: var(--gold); background: #33417a; }
 .bq-result .jp { font-size: 15px; color: var(--text); }
 .bq-result b { color: var(--gold); font-weight: normal; }
 
+.panel.victory { width: 380px; }
 .victory .final-word { pointer-events: auto; cursor: pointer; margin: 4px 0 10px; }
 .victory .final-word .jp { font-size: 40px; color: var(--paper); display: block; line-height: 1.1; }
 .victory .final-word em { font-style: normal; font-size: 12px; color: var(--gold); }
@@ -264,4 +265,28 @@ button.ucard:hover { border-color: var(--gold); background: #33417a; }
 .btn.small { padding: 3px 8px; }
 .btn.on { background: #3b4f8f; box-shadow: inset 0 -2px 0 #1b2447, 0 0 0 1px var(--gold); color: var(--gold); }
 .settings-row.jumps .btn { min-width: 64px; }
+.btn.tiny { padding: 2px 0; width: 26px; }
+.btn.tiny .jp { font-size: 14px; }
+.settings-gap { flex: 1; }
 .settings-foot { display: flex; justify-content: center; margin-top: 8px; }
+
+/* ── 챕터 선택 ── */
+.title-head { left: 0; right: 0; top: 10px; text-align: center; }
+.title-head b { display: block; font-family: Galmuri14, sans-serif; font-weight: normal; font-size: 15px; color: var(--gold); text-shadow: 1px 1px 0 var(--ink); }
+.title-head b .jp { font-size: 15px; color: var(--text); }
+.title-head span { font-family: Galmuri9, sans-serif; font-size: 10px; opacity: .75; }
+.chapter-grid { left: 24px; top: 48px; width: 592px; display: grid; grid-template-columns: repeat(5, 112px); gap: 8px; }
+.chapter-card { position: relative; width: 112px; height: 120px; padding: 0; background: transparent; color: var(--text);
+                border: 1px solid #3b4f8f; box-shadow: 0 0 0 1px var(--ink); font-family: Galmuri11, sans-serif; }
+.chapter-card.clickable:hover { border-color: var(--gold); box-shadow: 0 0 0 1px var(--ink), 0 0 0 3px rgba(240,184,74,.35); }
+.chapter-card.locked { opacity: .45; cursor: default; }
+.chapter-card.done { border-color: #7fd49a; }
+.chapter-card > span { position: absolute; left: 0; right: 0; text-align: center; }
+.ch-name { top: 3px; font-size: 12px; color: var(--gold); text-shadow: 1px 1px 0 var(--ink); }
+.ch-kana { top: 66px; font-size: 14px; letter-spacing: 1px; color: var(--paper); text-shadow: 1px 1px 0 var(--ink); }
+.ch-boss { top: 86px; font-family: Galmuri9, sans-serif; font-size: 10px; }
+.ch-state { top: 102px; font-family: Galmuri9, sans-serif; font-size: 10px; opacity: .8; }
+.chapter-card.done .ch-state { color: #9be3b0; opacity: 1; }
+.title-foot { left: 0; right: 0; bottom: 8px; text-align: center; font-family: Galmuri9, sans-serif; font-size: 10px; opacity: .7; }
+.title-foot b { color: var(--gold); font-weight: normal; }
+.reveal-caption small { display: block; margin-top: 4px; font-family: Galmuri9, sans-serif; font-size: 10px; color: var(--gold); }

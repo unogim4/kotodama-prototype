@@ -2,12 +2,15 @@ import Phaser from 'phaser';
 import { UILayer } from '../ui/UILayer';
 import { BossQuizPanel } from '../ui/BossQuizPanel';
 import { WEAPONS, WeaponDef } from '../data/weapons';
-import { ROW_A, Kana } from '../data/kana';
+import { ROWS, Kana, matchesKo } from '../data/kana';
+import { BOSSES, BossDef } from '../data/bosses';
 import { TEX } from '../art/textures';
 import { bossBackground, BOSS_W, BOSS_H, BOSS_FLOOR } from '../art/sprites';
 import { run, resetRaid, resetRun } from '../systems/run';
 import { createMoveKeys, readMove, MoveKeys } from '../systems/movement';
-import { makeQuiz, recordAnswer } from '../systems/quiz';
+import { makeQuiz, makeChoices, recordAnswer } from '../systems/quiz';
+import { markCleared } from '../systems/progress';
+import { wrongChips } from '../ui/wrongChips';
 import { tts } from '../systems/tts';
 import { WeaponSystem, Target } from '../combat/WeaponSystem';
 import { HangulSyllableTyper } from '../util/hangulKeys';
@@ -20,7 +23,7 @@ const BG_KEY = 'boss-bg';
 const PLAYER_SPEED = 80;
 /** 패턴을 충분히 보도록 넉넉하게 (무기만으로 몰아붙이기 어렵게) */
 const BOSS_MAX_HP = 3000;
-/** 야마비코가 서는 자리 (발 위치) */
+/** 보스가 서는 자리 (발 위치) */
 const HOME = { x: 160, y: 72 };
 /** 몸통 중심이 발보다 얼마나 위인지 */
 const BOSS_CORE_DY = 22;
@@ -77,6 +80,7 @@ interface Bullet {
 }
 
 export class BossScene extends Phaser.Scene {
+  private def!: BossDef;
   private ui!: UILayer;
   private panel!: BossQuizPanel;
   private keys!: MoveKeys;
@@ -133,6 +137,7 @@ export class BossScene extends Phaser.Scene {
       resetRaid();
     }
     this.weapon = WEAPONS.find((w) => w.id === run.weapon)!;
+    this.def = BOSSES[run.chapter] ?? BOSSES[0];
     // 보스 앞에서 한숨 돌린다: 체력 가득
     run.hp = run.build.maxHp;
 
@@ -160,7 +165,7 @@ export class BossScene extends Phaser.Scene {
     this.slowVeil = this.add.rectangle(0, 0, BOSS_W, BOSS_H, 0x26335f, 0.28).setOrigin(0).setDepth(900).setAlpha(0);
 
     this.bossShadow = this.add.ellipse(HOME.x, HOME.y, 34, 8, 0x000000, 0.35);
-    this.boss = this.add.image(HOME.x, HOME.y, TEX.yamabiko(false)).setOrigin(0.5, 1);
+    this.boss = this.add.image(HOME.x, HOME.y, TEX.boss(this.def.id, false)).setOrigin(0.5, 1);
     const core = this.add.image(HOME.x, HOME.y - BOSS_CORE_DY, TEX.spark).setVisible(false);
     this.bossTarget = { sprite: core, hp: 1, radius: BOSS_RADIUS, orbHitAt: 0 };
 
@@ -196,7 +201,7 @@ export class BossScene extends Phaser.Scene {
     // 등장
     this.boss.setAlpha(0).y = HOME.y - 30;
     this.tweens.add({ targets: this.boss, alpha: 1, y: HOME.y, duration: 700, delay: 300, ease: 'Bounce.easeOut' });
-    this.banner('👺 야마비코 <span class="jp">山彦</span>', '메아리 요괴가 길을 막는다 — 외치는 소리를 알아들어라');
+    this.banner(`👺 ${this.def.name} <span class="jp">${this.def.jp}</span>`, this.def.intro);
     this.time.delayedCall(2200, () => {
       if (this.state === 'intro') this.state = 'fight';
     });
@@ -227,13 +232,13 @@ export class BossScene extends Phaser.Scene {
 
   private createHud(): void {
     const left = this.ui.el('div', 'raid-hud-left');
-    this.ui.el('div', 'raid-room', '👺 あ행 보스', left);
+    this.ui.el('div', 'raid-room', `👺 ${ROWS[run.chapter].name} 보스`, left);
     const hpBar = this.ui.el('div', 'bar hp', '', left);
     const hp = this.ui.el('i', '', '', hpBar);
     const hpText = this.ui.el('span', '', '', hpBar);
 
     const boss = this.ui.el('div', 'boss-hud');
-    this.ui.el('div', 'boss-name', '야마비코 <span class="jp">山彦</span>', boss);
+    this.ui.el('div', 'boss-name', `${this.def.name} <span class="jp">${this.def.jp}</span>`, boss);
     const bar = this.ui.el('div', 'bar boss', '', boss);
     const bossHeal = this.ui.el('i', 'heal', '', bar);
     const bossBar = this.ui.el('i', '', '', bar);
@@ -327,7 +332,7 @@ export class BossScene extends Phaser.Scene {
     this.shadow.setPosition(p.x, p.y).setDepth(p.y - 0.5);
   }
 
-  // ── 야마비코 ─────────────────────────────────────────
+  // ── 보스 ─────────────────────────────────────────
 
   private bossVulnerable(): boolean {
     return (this.state === 'fight' || this.state === 'quiz') && !this.rage && this.time.now >= this.bossInvulnUntil;
@@ -388,7 +393,7 @@ export class BossScene extends Phaser.Scene {
       }
     }
 
-    b.setTexture(TEX.yamabiko(shouting || this.rage || this.bossMode === 'tele'));
+    b.setTexture(TEX.boss(this.def.id, shouting || this.rage || this.bossMode === 'tele'));
     b.setFlipX(this.player.x < b.x);
     b.setDepth(b.y);
     this.bossShadow.setPosition(b.x, b.y).setDepth(b.y - 0.5);
@@ -482,7 +487,7 @@ export class BossScene extends Phaser.Scene {
     }
   }
 
-  /** 무기·퀴즈로 야마비코를 깎는다. 페이즈 바닥 아래로는 깎이지 않는다 */
+  /** 무기·퀴즈로 보스를 깎는다. 페이즈 바닥 아래로는 깎이지 않는다 */
   private hitBoss(amount: number, fromQuiz: boolean): void {
     if (this.rage || this.phaseDue) return;
     if (!fromQuiz && !this.bossVulnerable()) return;
@@ -517,7 +522,7 @@ export class BossScene extends Phaser.Scene {
       this.banner('2페이즈 · 메아리 바닥', '외친 글자가 새겨진 돌판 위에 서라');
       this.time.delayedCall(900, () => this.createTiles());
     } else {
-      this.banner('3페이즈 · 언령 대결', '글자는 발음으로, 발음은 글자로 — 틀리면 야마비코가 회복한다');
+      this.banner('3페이즈 · 언령 대결', `글자는 발음으로, 발음은 글자로 — 틀리면 ${this.def.name}가 회복한다`);
       this.removeTiles();
     }
     this.time.delayedCall(1900, () => {
@@ -534,19 +539,22 @@ export class BossScene extends Phaser.Scene {
     this.tiles = TILES.map((t, i) => {
       const img = this.add.image(t.x, t.y, TEX.tile('idle')).setDepth(2).setAlpha(0);
       this.tweens.add({ targets: img, alpha: 1, duration: 400 });
-      const label = this.ui.el('div', 'glyph tile-glyph', ROW_A[i].kana);
+      const kana = ROWS[run.chapter].kana[i % ROWS[run.chapter].kana.length];
+      const label = this.ui.el('div', 'glyph tile-glyph', kana.kana);
       this.ui.place(label, screen(t.x), screen(t.y - 1));
-      return { img, label, kana: ROW_A[i] };
+      return { img, label, kana };
     });
   }
 
-  /** 매번 돌판 글자 배치를 섞는다 (위치로 외우지 못하게) */
-  private shuffleTiles(): void {
-    const order = Phaser.Utils.Array.Shuffle([...ROW_A]);
+  /** 퀴즈마다 돌판에 보기를 새로 새긴다 (위치로 외우지 못하게 섞어서) */
+  private engraveTiles(choices: Kana[]): void {
     this.tiles.forEach((t, i) => {
-      t.kana = order[i];
-      t.label.textContent = order[i].kana;
-      t.img.setTexture(TEX.tile('idle'));
+      const k = choices[i];
+      t.img.setVisible(!!k).setTexture(TEX.tile('idle'));
+      t.label.style.display = k ? '' : 'none';
+      if (!k) return;
+      t.kana = k;
+      t.label.textContent = k.kana;
     });
   }
 
@@ -559,7 +567,7 @@ export class BossScene extends Phaser.Scene {
   }
 
   private tileUnderPlayer(): number {
-    return this.tiles.findIndex((t) => Math.abs(this.player.x - t.img.x) < 14 && Math.abs(this.player.y - t.img.y) < 9);
+    return this.tiles.findIndex((t) => t.img.visible && Math.abs(this.player.x - t.img.x) < 14 && Math.abs(this.player.y - t.img.y) < 9);
   }
 
   // ── 퀴즈 ─────────────────────────────────────────────
@@ -574,7 +582,8 @@ export class BossScene extends Phaser.Scene {
   }
 
   private startQuiz(kind: QuizKind, rage = false): void {
-    const base = makeQuiz(false);
+    const base = makeQuiz(false, kind === 'A');
+    if (kind === 'floor') base.choices = makeChoices(base.answer, TILES.length);
     const limit = rage ? RAGE_LIMIT : QUIZ_LIMIT;
     const q: Quiz = { kind, answer: base.answer, choices: base.choices, limit, left: limit, done: false, rage, standTile: -1, standMs: 0 };
     this.quiz = q;
@@ -592,9 +601,9 @@ export class BossScene extends Phaser.Scene {
       const how = '외친 소리';
       const replay = this.ttsOk ? ' <small>Space 다시 듣기</small>' : '';
       if (kind === 'shout') {
-        this.panel.show({ title, prompt: `야마비코가 ${how}의 글자는?${replay}`, choices: kanaChoices }, (i) => this.resolve(q.choices[i] === q.answer, i));
+        this.panel.show({ title, prompt: `${this.def.name}가 ${how}의 글자는?${replay}`, choices: kanaChoices }, (i) => this.resolve(q.choices[i] === q.answer, i));
       } else {
-        this.shuffleTiles();
+        this.engraveTiles(q.choices);
         this.panel.show({ title, prompt: `${how}의 글자가 새겨진 돌판 위에 서라! <small>WASD 이동</small>${replay}` });
       }
     } else if (kind === 'A') {
@@ -606,7 +615,7 @@ export class BossScene extends Phaser.Scene {
     }
   }
 
-  /** 야마비코가 글자를 외친다 (일본어 음성이 없으면 말풍선에 한글로) */
+  /** 보스가 글자를 외친다 (일본어 음성이 없으면 말풍선에 한글로) */
   private shout(kana: Kana): void {
     this.cameras.main.shake(150, 0.003);
     const bubble = this.ui.el('div', 'boss-bubble', this.ttsOk ? '♪ ! ♪' : `「${kana.ko}!」`);
@@ -651,7 +660,7 @@ export class BossScene extends Phaser.Scene {
       const handled = this.typer.handle(
         e,
         (preview) => this.panel.setTyped(preview),
-        (syl) => this.resolve(syl === q.answer.ko, -1, syl === q.answer.ko ? undefined : `입력: ${syl}`),
+        (syl) => this.resolve(matchesKo(q.answer, syl), -1, matchesKo(q.answer, syl) ? undefined : `입력: ${syl}`),
       );
       if (handled) e.preventDefault();
       return;
@@ -727,13 +736,13 @@ export class BossScene extends Phaser.Scene {
     this.minions = [];
     this.bullets.forEach((b) => (b.life = 0));
     this.cameras.main.shake(400, 0.008);
-    this.banner('야마비코의 발악!', `다섯 언령을 연달아 맞혀라 — 하나라도 틀리면 회복한다`, 2000);
+    this.banner(`${this.def.name}의 발악!`, `다섯 언령을 연달아 맞혀라 — 하나라도 틀리면 회복한다`, 2000);
     this.time.delayedCall(1800, () => this.startQuiz(Math.random() < 0.5 ? 'A' : 'B', true));
   }
 
   // ── 연출 ─────────────────────────────────────────────
 
-  /** 정답: 언령사에게서 야마비코로 금빛 언령이 꽂힌다 */
+  /** 정답: 언령사에게서 보스로 금빛 언령이 꽂힌다 */
   private counterBeam(): void {
     const g = this.add.graphics().setDepth(800);
     const from = { x: this.player.x, y: this.player.y - 8 };
@@ -756,7 +765,7 @@ export class BossScene extends Phaser.Scene {
     this.time.delayedCall(120, () => this.boss.clearTint());
   }
 
-  /** 오답 (1·2페이즈): 야마비코의 충격파가 언령사를 덮친다 */
+  /** 오답 (1·2페이즈): 보스의 충격파가 언령사를 덮친다 */
   private shockwave(): void {
     const cx = this.boss.x;
     const cy = this.boss.y - 10;
@@ -815,7 +824,7 @@ export class BossScene extends Phaser.Scene {
     }
   }
 
-  /** 야마비코에게 부딪히면 튕겨 나간다 (계속 겹쳐서 녹는 것 방지) */
+  /** 보스에게 부딪히면 튕겨 나간다 (계속 겹쳐서 녹는 것 방지) */
   private knockPlayer(fromX: number, fromY: number, dist: number): void {
     const p = this.player;
     const dx = p.x - fromX;
@@ -842,27 +851,18 @@ export class BossScene extends Phaser.Scene {
     if (run.hp <= 0) this.die();
   }
 
-  private wrongChips(parent: HTMLElement): void {
-    const wrong = ROW_A.filter((k) => run.wrong[k.kana]).sort((a, b) => run.wrong[b.kana] - run.wrong[a.kana]);
-    if (wrong.length === 0) {
-      this.ui.el('p', '', '틀린 글자는 없었다!', parent);
-      return;
-    }
-    this.ui.el('p', '', '틀린 글자 — 눌러서 다시 듣기', parent);
-    const row = this.ui.el('div', 'row', '', parent);
-    for (const k of wrong) {
-      const chip = this.ui.el('div', 'wrong-chip', '', row);
-      chip.innerHTML = `<span class="kana">${k.kana}</span><b>${k.ko}</b><small>×${run.wrong[k.kana]}</small>`;
-      chip.addEventListener('click', () => void tts.speak(k.kana));
-    }
-  }
-
   private endQuizUi(): void {
     this.panel.close();
     this.quiz = null;
     this.removeTiles();
     this.worldTarget = 1;
     this.slowVeil.setAlpha(0);
+  }
+
+  /** 챕터를 처음(서고)부터 */
+  private restartChapter(): void {
+    resetRun();
+    this.scene.start('Library');
   }
 
   private die(): void {
@@ -875,14 +875,12 @@ export class BossScene extends Phaser.Scene {
       this.ui.root.classList.add('dimmed');
       const panel = this.ui.el('div', 'panel fade-in defeat');
       this.ui.el('h2', '', '쓰러졌다…', panel);
-      this.wrongChips(panel);
+      wrongChips(this.ui, panel);
       const btns = this.ui.el('div', 'row', '', panel);
       btns.style.marginBottom = '0';
       this.ui.button('보스부터 다시', () => this.scene.restart(), '', btns);
-      this.ui.button('서고부터 다시', () => {
-        resetRun();
-        this.scene.start('Library');
-      }, 'primary', btns);
+      this.ui.button('챕터 처음부터', () => this.restartChapter(), '', btns);
+      this.ui.button('챕터 선택', () => this.scene.start('Title'), 'primary', btns);
     });
   }
 
@@ -895,29 +893,34 @@ export class BossScene extends Phaser.Scene {
     this.bullets.forEach((b) => b.sprite.destroy());
     this.minions = [];
     this.bullets = [];
-    // 마지막 일격: 言う
+    markCleared(run.chapter);
+    const fw = this.def.finalWord;
+    // 마지막 일격: 이 챕터의 마지막 언령
     this.cameras.main.flash(400, 255, 250, 240);
     this.sparks(this.boss.x, this.boss.y - BOSS_CORE_DY, 20, 50);
     this.tweens.add({ targets: [this.boss, this.bossShadow], alpha: 0, scaleX: 1.4, scaleY: 0.2, duration: 900, ease: 'Cubic.easeIn' });
-    if (this.ttsOk) this.time.delayedCall(500, () => void tts.speak('いう'));
+    if (this.ttsOk) this.time.delayedCall(500, () => void tts.speak(fw.kana));
 
     this.time.delayedCall(1400, () => {
+      const row = ROWS[run.chapter];
+      const next = ROWS[run.chapter + 1];
       this.ui.root.classList.add('dimmed');
       const panel = this.ui.el('div', 'panel fade-in victory');
-      this.ui.el('h2', '', 'あ행 돌파!', panel);
+      this.ui.el('h2', '', next ? `${row.name} 돌파!` : '히라가나 46자 완주!', panel);
       const word = this.ui.el('div', 'final-word', '', panel);
-      word.innerHTML = `<span class="jp">いう</span><em><span class="jp">言う</span> · 말하다</em>`;
-      word.addEventListener('click', () => void tts.speak('いう'));
-      this.ui.el('p', '', `마지막 언령은 <b>いう</b> — 언령(<span class="jp">言霊</span>)의 '<span class="jp">言</span>'.<br>보스 퀴즈 정답 <b>${this.stats.correct} / ${this.stats.total}</b>`, panel);
-      this.wrongChips(panel);
+      word.innerHTML = `<span class="jp">${fw.kana}</span><em><span class="jp">${fw.kanji}</span> · ${fw.meaning}</em>`;
+      word.addEventListener('click', () => void tts.speak(fw.kana));
+      this.ui.el('p', '', `마지막 언령은 <b>${fw.kana}</b> — ${fw.note}.<br>보스 퀴즈 정답 <b>${this.stats.correct} / ${this.stats.total}</b>`, panel);
+      wrongChips(this.ui, panel);
       const btns = this.ui.el('div', 'row', '', panel);
       btns.style.marginBottom = '0';
-      const next = this.ui.button('か행 (준비 중)', () => undefined, '', btns);
-      next.disabled = true;
-      this.ui.button('서고부터 다시', () => {
-        resetRun();
-        this.scene.start('Library');
-      }, 'primary', btns);
+      this.ui.button('챕터 선택', () => this.scene.start('Title'), '', btns);
+      if (next) {
+        this.ui.button(`${next.name} 도전 ▶`, () => {
+          run.chapter++;
+          this.restartChapter();
+        }, 'primary', btns);
+      }
     });
   }
 }

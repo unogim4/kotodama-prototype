@@ -8,6 +8,10 @@ export const settings = {
   weapon: 'ofuda' as WeaponId,
   /** 바로 이동할 때 미리 받아 둘 강화 수 */
   upgrades: 0,
+  /** 바로 이동할 챕터 (행 번호, 0 = あ행) */
+  chapter: 0,
+  /** 모든 챕터 열기 */
+  unlockAll: false,
 };
 
 const KEY = 'kotodama-settings';

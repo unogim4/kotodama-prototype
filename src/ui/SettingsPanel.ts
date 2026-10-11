@@ -3,7 +3,8 @@ import { settings, saveSettings } from '../systems/settings';
 import { run, resetRaid, resetRun } from '../systems/run';
 import { WEAPONS, WeaponId } from '../data/weapons';
 import { rollUpgrades } from '../data/upgrades';
-import { ROW_A } from '../data/kana';
+import { ROWS } from '../data/kana';
+import { learnedKana } from '../systems/quiz';
 
 /** 바로 이동할 수 있는 지점 */
 interface Jump {
@@ -13,6 +14,7 @@ interface Jump {
 }
 
 const JUMPS: Jump[] = [
+  { group: '서고', label: '챕터 선택', go: () => ['Title'] },
   { group: '서고', label: '서고 (처음부터)', go: () => ['Library'] },
   { group: '서고', label: '무기 선택', go: () => ['WeaponSelect'] },
   { group: '습격', label: '습격 1', go: () => ['Raid', room(1)] },
@@ -99,8 +101,11 @@ export class SettingsPanel {
     h('h2', '', '⚙ 사용자 설정');
     h('p', 'settings-sub', '원하는 지점을 누르면 그곳에서 바로 시작해요');
 
-    // 무기 · 강화 · 무적 (바로 이동할 때 적용)
+    // 챕터 · 무기 · 강화 · 무적 (바로 이동할 때 적용)
     const opts = h('div', 'settings-opts', '');
+    const cRow = h('div', 'settings-row chapters', '<span>챕터</span>', opts);
+    for (const r of ROWS) btn(`<span class="jp">${r.kana[0].kana}</span>`, settings.chapter === r.index, () => this.set({ chapter: r.index }), cRow, 'tiny');
+
     const wRow = h('div', 'settings-row', '<span>무기</span>', opts);
     for (const w of WEAPONS) {
       btn(w.name, settings.weapon === w.id, () => this.set({ weapon: w.id as WeaponId }), wRow, 'small');
@@ -110,6 +115,8 @@ export class SettingsPanel {
     const gRow = h('div', 'settings-row', '<span>무적</span>', opts);
     btn('끔', !settings.god, () => this.set({ god: false }), gRow, 'small');
     btn('켬', settings.god, () => this.set({ god: true }), gRow, 'small');
+    h('span', 'settings-gap', '', gRow);
+    btn(`모든 챕터 열기 ${settings.unlockAll ? '켬' : '끔'}`, settings.unlockAll, () => this.set({ unlockAll: !settings.unlockAll }), gRow, 'small');
 
     // 바로 이동
     const groups = [...new Set(JUMPS.map((j) => j.group))];
@@ -131,11 +138,12 @@ export class SettingsPanel {
 
   /** 설정한 무기·강화로 런 상태를 꾸리고 그 지점부터 시작 */
   private jump(j: Jump): void {
-    if (j.label.startsWith('서고')) {
+    run.chapter = settings.chapter;
+    if (j.label.startsWith('서고') || j.label === '챕터 선택') {
       resetRun();
     } else {
       run.weapon = j.label === '무기 선택' ? null : settings.weapon;
-      run.learned = ROW_A.map((k) => k.kana);
+      run.learned = learnedKana().map((k) => k.kana);
       resetRaid();
       for (let i = 0; i < settings.upgrades; i++) {
         const u = rollUpgrades(run.weapon, run.upgrades, 1)[0];
@@ -148,11 +156,15 @@ export class SettingsPanel {
     const [scene, data] = j.go();
     this.closePanelOnly();
     const sm = this.game.scene;
+    const target = sm.getScene(scene);
+    const running = (s: Phaser.Scene) => s.scene.isActive() || s.scene.isPaused();
     sm.getScenes(false)
-      .filter((s) => s.scene.key !== 'Boot' && (s.scene.isActive() || s.scene.isPaused()))
+      .filter((s) => s.scene.key !== 'Boot' && s !== target && running(s))
       .forEach((s) => s.scene.stop());
     this.paused = [];
-    sm.start(scene, data);
+    // 같은 장면으로 이동하면 멈췄다 켜는 대신 다시 시작
+    if (running(target)) target.scene.restart(data);
+    else sm.start(scene, data);
   }
 
   private closePanelOnly(): void {

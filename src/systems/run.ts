@@ -37,6 +37,8 @@ export function freshBuild(weapon: WeaponId | null): Build {
 
 /** 한 판(런) 동안 유지되는 상태 */
 export const run = {
+  /** 지금 도전 중인 챕터 (행 번호, 0 = あ행) */
+  chapter: 0,
   /** 고른 최초 무기 */
   weapon: null as WeaponId | null,
   /** 서고에서 익힌 글자 */

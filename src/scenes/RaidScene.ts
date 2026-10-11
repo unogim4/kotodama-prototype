@@ -3,7 +3,8 @@ import { UILayer } from '../ui/UILayer';
 import { LevelUpPanel } from '../ui/LevelUpPanel';
 import { WEAPONS, WeaponDef } from '../data/weapons';
 import { rollUpgrades } from '../data/upgrades';
-import { ROW_A } from '../data/kana';
+import { ROWS } from '../data/kana';
+import { wrongChips } from '../ui/wrongChips';
 import { TEX } from '../art/textures';
 import { arenaBackground, ARENA_W, ARENA_H, ARENA_WALL_Y, TORII, TORII_GATE } from '../art/sprites';
 import { run, resetRaid, resetRun } from '../systems/run';
@@ -134,7 +135,7 @@ export class RaidScene extends Phaser.Scene {
 
   private createHud(): void {
     const left = this.ui.el('div', 'raid-hud-left');
-    this.ui.el('div', 'raid-room', `👹 습격 ${run.room}/${ROOMS}`, left);
+    this.ui.el('div', 'raid-room', `👹 ${ROWS[run.chapter].name} · 습격 ${run.room}/${ROOMS}`, left);
     const hpBar = this.ui.el('div', 'bar hp', '', left);
     const hp = this.ui.el('i', '', '', hpBar);
     const hpText = this.ui.el('span', '', '', hpBar);
@@ -238,7 +239,8 @@ export class RaidScene extends Phaser.Scene {
     this.enemies.push({
       kind,
       sprite,
-      hp: def.hp * (1 + (run.room - 1) * 0.25),
+      // 방이 깊을수록, 뒤 챕터일수록 튼튼하다
+      hp: def.hp * (1 + (run.room - 1) * 0.25) * (1 + run.chapter * 0.06),
       speed: def.speed * (1 + (run.room - 1) * 0.08) * (0.9 + Math.random() * 0.2),
       radius: def.radius,
       kx: 0,
@@ -423,28 +425,18 @@ export class RaidScene extends Phaser.Scene {
       this.ui.root.classList.add('dimmed');
       const panel = this.ui.el('div', 'panel fade-in defeat');
       this.ui.el('h2', '', '쓰러졌다…', panel);
-      const wrong = ROW_A.filter((k) => run.wrong[k.kana]).sort((a, b) => run.wrong[b.kana] - run.wrong[a.kana]);
-      if (wrong.length > 0) {
-        this.ui.el('p', '', '이번에 틀린 글자 — 다시 한 번 눈에 익혀 두자', panel);
-        const row = this.ui.el('div', 'row', '', panel);
-        for (const k of wrong) {
-          const chip = this.ui.el('div', 'wrong-chip', '', row);
-          chip.innerHTML = `<span class="kana">${k.kana}</span><b>${k.ko}</b><small>×${run.wrong[k.kana]}</small>`;
-          chip.addEventListener('click', () => void tts.speak(k.kana));
-        }
-      } else {
-        this.ui.el('p', '', '틀린 글자는 없었다. 요괴를 피하는 연습을 해 보자!', panel);
-      }
+      wrongChips(this.ui, panel);
       const btns = this.ui.el('div', 'row', '', panel);
       btns.style.marginBottom = '0';
       this.ui.button('습격 1부터 다시', () => {
         resetRaid();
         this.scene.restart();
       }, '', btns);
-      this.ui.button('서고부터 다시', () => {
+      this.ui.button('챕터 처음부터', () => {
         resetRun();
         this.scene.start('Library');
-      }, 'primary', btns);
+      }, '', btns);
+      this.ui.button('챕터 선택', () => this.scene.start('Title'), 'primary', btns);
     });
   }
 

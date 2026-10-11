@@ -1,4 +1,5 @@
 import { Grid, PalKey, canvas, rect, px } from './pixel';
+import type { BossLook } from '../data/bosses';
 
 // ── 언령사 (플레이어) 16×16 ─────────────────────────────
 export const PLAYER: Grid = [
@@ -526,47 +527,180 @@ function outlinedEllipse(g: CanvasRenderingContext2D, cx: number, cy: number, rx
   fillEllipse(g, cx, cy, rx, ry, key);
 }
 
-/** shout: 입을 크게 벌리고 손을 입가에 모은 '외침' 프레임 */
-export function yamabiko(shout: boolean): HTMLCanvasElement {
-  const [c, g] = canvas(48, 48);
-  // 귀
-  for (const ex of [11, 37]) {
-    fillEllipse(g, ex, 9, 5, 6, 'K');
-    fillEllipse(g, ex, 9, 4, 5, 'B');
-    fillEllipse(g, ex, 10, 2, 3, 's');
+/** 다각형(삼각형 등) 채우기 — 뿔·뾰족귀·불꽃용 */
+function fillPoly(g: CanvasRenderingContext2D, pts: [number, number][], key: PalKey): void {
+  const ys = pts.map((p) => p[1]);
+  for (let y = Math.floor(Math.min(...ys)); y <= Math.ceil(Math.max(...ys)); y++) {
+    for (let x = 0; x < 48; x++) {
+      let inside = false;
+      for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+        const [xi, yi] = pts[i];
+        const [xj, yj] = pts[j];
+        if (yi > y + 0.5 !== yj > y + 0.5 && x + 0.5 < ((xj - xi) * (y + 0.5 - yi)) / (yj - yi) + xi) inside = !inside;
+      }
+      if (inside) px(g, x, y, key);
+    }
   }
-  // 발
-  outlinedEllipse(g, 15, 44, 5, 3, 'd');
-  outlinedEllipse(g, 33, 44, 5, 3, 'd');
-  // 몸통 (털)
-  outlinedEllipse(g, 24, 32, 17, 12, 'B');
-  for (let i = 0; i < 40; i++) px(g, 9 + ((i * 7) % 30), 24 + ((i * 11) % 18), i % 3 ? 'b' : 'd');
-  fillEllipse(g, 24, 35, 9, 7, 'b');
-  // 머리
-  outlinedEllipse(g, 24, 17, 15, 12, 'B');
-  for (let i = 0; i < 18; i++) px(g, 11 + ((i * 5) % 26), 7 + ((i * 3) % 6), 'b');
-  // 얼굴
-  fillEllipse(g, 24, 20, 10, 8, 'S');
-  fillEllipse(g, 24, 23, 8, 4, 's');
-  // 눈 (금빛)
-  for (const ex of [19, 29]) {
-    rect(g, ex - 1, 15, 3, 3, 'K');
-    px(g, ex, 16, 'G');
-  }
-  // 입
-  if (shout) {
-    fillEllipse(g, 24, 24, 5, 5, 'K');
-    fillEllipse(g, 24, 25, 3.5, 3.5, 'r');
-    rect(g, 22, 21, 5, 1, 'L');
+}
+
+/** 외곽선 1px을 두른 다각형 */
+function outlinedPoly(g: CanvasRenderingContext2D, pts: [number, number][], key: PalKey): void {
+  const cx = pts.reduce((a, p) => a + p[0], 0) / pts.length;
+  const cy = pts.reduce((a, p) => a + p[1], 0) / pts.length;
+  fillPoly(g, pts.map(([x, y]) => [x + Math.sign(x - cx), y + Math.sign(y - cy)] as [number, number]), 'K');
+  fillPoly(g, pts, key);
+}
+
+/** 눈·코·입 (공통 얼굴). cy = 얼굴 중심 y */
+function face(g: CanvasRenderingContext2D, L: BossLook, shout: boolean, cy: number): void {
+  if (L.eyes === 'one') {
+    fillEllipse(g, 24, cy - 4, 4, 4, 'K');
+    fillEllipse(g, 24, cy - 4, 3, 3, 'L');
+    rect(g, 23, cy - 5, 2, 2, 'K');
   } else {
-    rect(g, 21, 24, 7, 2, 'K');
-    rect(g, 22, 24, 5, 1, 'r');
+    for (const ex of [19, 29]) {
+      rect(g, ex - 1, cy - 5, 3, 3, 'K');
+      px(g, ex, cy - 4, 'G');
+    }
   }
+  if (L.nose === 'beak') {
+    outlinedEllipse(g, 24, cy + 3, 5, shout ? 4 : 2.5, 'G');
+    rect(g, 20, cy + 3, 9, 1, shout ? 'r' : 'g');
+  } else if (shout) {
+    fillEllipse(g, 24, cy + 4, 5, 5, 'K');
+    fillEllipse(g, 24, cy + 5, 3.5, 3.5, 'r');
+    rect(g, 22, cy + 1, 5, 1, 'L');
+  } else {
+    rect(g, 21, cy + 4, 7, 2, 'K');
+    rect(g, 22, cy + 4, 5, 1, 'r');
+  }
+  if (L.nose === 'long') {
+    // 텐구의 긴 코: 얼굴 가운데서 아래로 길게
+    rect(g, 22, cy - 3, 5, 9, 'K');
+    rect(g, 23, cy - 3, 3, 8, L.face);
+    fillEllipse(g, 24.5, cy + 6, 2.5, 2, L.faceShade);
+  }
+}
+
+/** 털짐승형 요괴 (야마비코·갓파·사토리·텐구·바케네코·오니·야마우바·라이쥬) */
+function beastBoss(g: CanvasRenderingContext2D, L: BossLook, shout: boolean): void {
+  const hair: PalKey = L.furLight === 'W' ? 'L' : 'K';
+  // 등 뒤: 날개 · 꼬리 · 번개
+  if (L.extra === 'wings') {
+    for (const wx of [7, 41]) {
+      outlinedEllipse(g, wx, 28, 7, 14, 'K');
+      for (let i = 0; i < 4; i++) rect(g, wx - 3, 20 + i * 5, 6, 1, 'n');
+    }
+  }
+  if (L.extra === 'tails') {
+    for (const [tx, ty] of [[40, 40], [43, 34], [44, 27], [37, 38], [38, 31], [36, 24]] as const) outlinedEllipse(g, tx, ty, 3, 3, L.fur);
+    fillEllipse(g, 44, 26, 2, 2, L.furLight);
+    fillEllipse(g, 36, 23, 2, 2, L.furLight);
+  }
+  if (L.extra === 'bolt') {
+    outlinedPoly(g, [[36, 40], [46, 30], [41, 30], [47, 20], [37, 32], [42, 32]], 'G');
+  }
+  // 귀
+  if (L.ears === 'round') {
+    for (const ex of [11, 37]) {
+      fillEllipse(g, ex, 9, 5, 6, 'K');
+      fillEllipse(g, ex, 9, 4, 5, L.fur);
+      fillEllipse(g, ex, 10, 2, 3, 's');
+    }
+  } else if (L.ears === 'pointy') {
+    outlinedPoly(g, [[9, 14], [12, 1], [19, 9]], L.fur);
+    outlinedPoly(g, [[39, 14], [36, 1], [29, 9]], L.fur);
+    fillPoly(g, [[11, 12], [12, 5], [16, 10]], 's');
+    fillPoly(g, [[37, 12], [36, 5], [32, 10]], 's');
+  }
+  // 발 · 몸통
+  outlinedEllipse(g, 15, 44, 5, 3, L.furDark);
+  outlinedEllipse(g, 33, 44, 5, 3, L.furDark);
+  outlinedEllipse(g, 24, 32, 17, 12, L.fur);
+  for (let i = 0; i < 40; i++) px(g, 9 + ((i * 7) % 30), 24 + ((i * 11) % 18), i % 3 ? L.furLight : L.furDark);
+  fillEllipse(g, 24, 35, 9, 7, L.furLight);
+  // 머리
+  outlinedEllipse(g, 24, 17, 15, 12, L.fur);
+  for (let i = 0; i < 18; i++) px(g, 11 + ((i * 5) % 26), 7 + ((i * 3) % 6), L.furLight);
+  // 머리카락 · 접시 · 뿔
+  if (L.extra === 'hair') {
+    fillEllipse(g, 24, 9, 15, 6, hair);
+    for (let i = 0; i < 7; i++) fillPoly(g, [[10 + i * 4, 8], [12 + i * 4, 1 + (i % 2) * 2], [14 + i * 4, 8]], hair);
+    if (hair === 'L') {
+      rect(g, 8, 10, 4, 18, hair);
+      rect(g, 36, 10, 4, 18, hair);
+    }
+  }
+  if (L.extra === 'plate') {
+    for (let i = 0; i < 9; i++) fillPoly(g, [[10 + i * 3.5, 9], [12 + i * 3.5, 4], [14 + i * 3.5, 9]], L.furDark);
+    outlinedEllipse(g, 24, 5, 8, 2.5, 'W');
+    fillEllipse(g, 24, 5, 6, 1.5, 'L');
+  }
+  if (L.horns === 2) {
+    outlinedPoly(g, [[13, 8], [11, -1], [18, 6]], 'W');
+    outlinedPoly(g, [[35, 8], [37, -1], [30, 6]], 'W');
+  } else if (L.horns === 1) {
+    outlinedPoly(g, [[21, 6], [24, -2], [27, 6]], 'W');
+  }
+  // 얼굴
+  fillEllipse(g, 24, 20, 10, 8, L.face);
+  fillEllipse(g, 24, 23, 8, 4, L.faceShade);
+  face(g, L, shout, 20);
   // 손 (외칠 땐 입가로)
   const hy = shout ? 23 : 33;
   const hx = shout ? 11 : 7;
-  outlinedEllipse(g, hx, hy, 4, 3.5, 'd');
-  outlinedEllipse(g, 48 - hx, hy, 4, 3.5, 'd');
+  outlinedEllipse(g, hx, hy, 4, 3.5, L.furDark);
+  outlinedEllipse(g, 48 - hx, hy, 4, 3.5, L.furDark);
+}
+
+/** 누리카베: 거대한 벽 */
+function wallBoss(g: CanvasRenderingContext2D, L: BossLook, shout: boolean): void {
+  rect(g, 3, 4, 42, 41, 'K');
+  rect(g, 4, 5, 40, 39, L.fur);
+  for (let y = 11; y < 44; y += 7) {
+    rect(g, 4, y, 40, 1, L.furDark);
+    for (let x = 4 + (Math.floor(y / 7) % 2) * 6; x < 44; x += 12) rect(g, x, y - 6, 1, 6, L.furDark);
+  }
+  rect(g, 4, 5, 40, 2, L.furLight);
+  // 짧은 팔다리
+  outlinedEllipse(g, 2, 30, 2.5, 4, L.furDark);
+  outlinedEllipse(g, 46, 30, 2.5, 4, L.furDark);
+  outlinedEllipse(g, 14, 45, 4, 2, L.furDark);
+  outlinedEllipse(g, 34, 45, 4, 2, L.furDark);
+  fillEllipse(g, 24, 22, 12, 9, L.faceShade);
+  fillEllipse(g, 24, 21, 11, 8, L.face);
+  face(g, L, shout, 21);
+}
+
+/** 와뉴도: 불타는 수레바퀴 속 얼굴 */
+function wheelBoss(g: CanvasRenderingContext2D, L: BossLook, shout: boolean): void {
+  // 위쪽 불꽃
+  for (let i = 0; i < 9; i++) {
+    const a = Math.PI + (Math.PI * i) / 8;
+    const fx = 24 + Math.cos(a) * 19;
+    const fy = 26 + Math.sin(a) * 18;
+    fillPoly(g, [[fx - 4, fy + 2], [fx + Math.cos(a) * 9, fy + Math.sin(a) * 9 - 2], [fx + 4, fy + 2]], i % 2 ? 'R' : 'G');
+  }
+  outlinedEllipse(g, 24, 27, 20, 19, L.furDark);
+  fillEllipse(g, 24, 27, 17, 16, 'K');
+  for (let i = 0; i < 8; i++) {
+    const a = (Math.PI * 2 * i) / 8;
+    for (let r = 10; r < 17; r++) rect(g, Math.round(24 + Math.cos(a) * r), Math.round(27 + Math.sin(a) * r), 2, 2, L.fur);
+  }
+  outlinedEllipse(g, 24, 27, 11, 10, L.face);
+  fillEllipse(g, 24, 30, 8, 4, L.faceShade);
+  // 굵은 눈썹
+  rect(g, 16, 20, 6, 2, 'K');
+  rect(g, 27, 20, 6, 2, 'K');
+  face(g, L, shout, 28);
+}
+
+/** 보스 요괴 48×48. shout: 입을 크게 벌린 '외침' 프레임 */
+export function yokaiBoss(L: BossLook, shout: boolean): HTMLCanvasElement {
+  const [c, g] = canvas(48, 48);
+  if (L.body === 'wall') wallBoss(g, L, shout);
+  else if (L.body === 'wheel') wheelBoss(g, L, shout);
+  else beastBoss(g, L, shout);
   return c;
 }
 

@@ -5,6 +5,7 @@ import { WEAPONS, STAT_LABELS, WeaponDef } from '../data/weapons';
 import { TEX } from '../art/textures';
 import { run, resetRaid } from '../systems/run';
 import { withRo, withEul } from '../util/korean';
+import { ROWS } from '../data/kana';
 
 const CARD_W = 180;
 const CARD_H = 266;
@@ -45,7 +46,7 @@ export class WeaponSelectScene extends Phaser.Scene {
     this.add.rectangle(0, 0, 640, 360, 0x0c0a12, 0.82).setOrigin(0);
 
     this.ui.el('div', 'ws-title', '첫 무기를 고르세요');
-    this.ui.el('div', 'ws-sub', 'あ행의 언령이 무기에 깃든다');
+    this.ui.el('div', 'ws-sub', `${ROWS[run.chapter].name}의 언령이 무기에 깃든다`);
 
     WEAPONS.forEach((def, i) => this.createCard(def, CARD_XS[i], i));
 

@@ -1,9 +1,10 @@
 import Phaser from 'phaser';
 import { gridCanvas } from './pixel';
+import { BOSSES } from '../data/bosses';
 import {
   PLAYER, SCROLL_SEALED, stand, hangingScrollFrames, glow, spark,
   ICON_OFUDA, ICON_SUZU, ICON_KITSUNEBI, SHOT_OFUDA, ORB_KITSUNEBI, DUMMY,
-  doorPanel, doorSeal, HITODAMA, KASA, GEM, yamabiko, ECHO_SHOT, floorTile,
+  doorPanel, doorSeal, HITODAMA, KASA, GEM, yokaiBoss, ECHO_SHOT, floorTile,
 } from './sprites';
 
 export const TEX = {
@@ -22,7 +23,7 @@ export const TEX = {
   hitodama: (f: number) => `hitodama-${f}`,
   kasa: (f: number) => `kasa-${f}`,
   gem: 'gem',
-  yamabiko: (shout: boolean) => (shout ? 'yamabiko-shout' : 'yamabiko'),
+  boss: (id: string, shout: boolean) => `boss-${id}${shout ? '-shout' : ''}`,
   echoShot: 'echo-shot',
   tile: (state: 'idle' | 'good' | 'bad') => `tile-${state}`,
 } as const;
@@ -53,8 +54,10 @@ export function registerTextures(scene: Phaser.Scene): void {
   HITODAMA.forEach((g, i) => add(scene, TEX.hitodama(i), gridCanvas(g)));
   KASA.forEach((g, i) => add(scene, TEX.kasa(i), gridCanvas(g)));
   add(scene, TEX.gem, gridCanvas(GEM));
-  add(scene, TEX.yamabiko(false), yamabiko(false));
-  add(scene, TEX.yamabiko(true), yamabiko(true));
+  for (const b of BOSSES) {
+    add(scene, TEX.boss(b.id, false), yokaiBoss(b.look, false));
+    add(scene, TEX.boss(b.id, true), yokaiBoss(b.look, true));
+  }
   add(scene, TEX.echoShot, gridCanvas(ECHO_SHOT));
   add(scene, TEX.tile('idle'), floorTile('N'));
   add(scene, TEX.tile('good'), floorTile('G'));

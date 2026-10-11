@@ -13,6 +13,6 @@ export class BootScene extends Phaser.Scene {
     const fonts = ['10px Galmuri9', '12px Galmuri11', '15px Galmuri14', '600 16px "Klee One"'];
     Promise.all(fonts.map((f) => document.fonts.load(f, 'あ가')))
       .catch(() => undefined)
-      .then(() => this.scene.start('Library'));
+      .then(() => this.scene.start('Title'));
   }
 }
