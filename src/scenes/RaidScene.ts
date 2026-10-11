@@ -11,6 +11,7 @@ import { createMoveKeys, readMove, MoveKeys } from '../systems/movement';
 import { makeQuiz } from '../systems/quiz';
 import { tts } from '../systems/tts';
 import { WeaponSystem, Target } from '../combat/WeaponSystem';
+import { settings } from '../systems/settings';
 
 const ZOOM = 2;
 const ROOMS = 3;
@@ -400,7 +401,7 @@ export class RaidScene extends Phaser.Scene {
   // ── 피격 · 패배 ──────────────────────────────────────
 
   private checkContact(time: number): void {
-    if (time < this.invulnUntil) return;
+    if (time < this.invulnUntil || settings.god) return;
     const p = this.player;
     for (const e of this.enemies) {
       if (Phaser.Math.Distance.Between(p.x, p.y - 6, e.sprite.x, e.sprite.y - 3) < ENEMY_DEFS[e.kind].radius + 5) {

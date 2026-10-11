@@ -11,13 +11,15 @@ import { makeQuiz, recordAnswer } from '../systems/quiz';
 import { tts } from '../systems/tts';
 import { WeaponSystem, Target } from '../combat/WeaponSystem';
 import { HangulSyllableTyper } from '../util/hangulKeys';
+import { settings } from '../systems/settings';
 
 /** 보스방은 카메라 고정 2배 (월드 320×180 → 화면 640×360) */
 const ZOOM = 2;
 const screen = (v: number) => v * ZOOM;
 const BG_KEY = 'boss-bg';
 const PLAYER_SPEED = 80;
-const BOSS_MAX_HP = 600;
+/** 패턴을 충분히 보도록 넉넉하게 (무기만으로 몰아붙이기 어렵게) */
+const BOSS_MAX_HP = 3000;
 /** 야마비코가 서는 자리 (발 위치) */
 const HOME = { x: 160, y: 72 };
 /** 몸통 중심이 발보다 얼마나 위인지 */
@@ -124,7 +126,8 @@ export class BossScene extends Phaser.Scene {
     super('Boss');
   }
 
-  create(): void {
+  /** data.phase: 사용자 설정 모드에서 원하는 페이즈부터 시작 */
+  create(data?: { phase?: 1 | 2 | 3 | 'rage' }): void {
     if (!run.weapon) {
       run.weapon = 'ofuda';
       resetRaid();
@@ -197,6 +200,20 @@ export class BossScene extends Phaser.Scene {
     this.time.delayedCall(2200, () => {
       if (this.state === 'intro') this.state = 'fight';
     });
+
+    // 사용자 설정 모드: 원하는 페이즈부터
+    const start = data?.phase ?? 1;
+    if (start !== 1) {
+      this.phase = start === 'rage' ? 3 : start;
+      this.bossHp = BOSS_MAX_HP * (this.phase === 2 ? 0.6 : 0.3);
+      this.boss.setPosition(HOME.x, HOME.y);
+      this.resetTimers();
+      if (this.phase === 2) this.time.delayedCall(400, () => this.createTiles());
+      if (start === 'rage') {
+        this.bossHp = BOSS_MAX_HP * 0.1;
+        this.time.delayedCall(2300, () => this.startRage());
+      }
+    }
   }
 
   private resetTimers(): void {
@@ -627,6 +644,7 @@ export class BossScene extends Phaser.Scene {
   }
 
   private onKey(e: KeyboardEvent): void {
+    if (this.sys.isPaused()) return; // 사용자 설정 창이 열려 있음
     const q = this.quiz;
     if (!q || q.done || this.state !== 'quiz') return;
     if (q.kind === 'A') {
@@ -817,6 +835,7 @@ export class BossScene extends Phaser.Scene {
     const now = this.time.now;
     if (this.state === 'dead' || this.state === 'won') return;
     if (!ignoreInvuln && now < this.invulnUntil) return;
+    if (settings.god) return;
     run.hp -= n;
     this.invulnUntil = now + 700;
     this.cameras.main.shake(120, 0.004);

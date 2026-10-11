@@ -102,7 +102,8 @@ export class LevelUpPanel {
 
   private bindKeys(fn: (key: string) => void): void {
     this.unbindKeys();
-    this.keyHandler = (e: KeyboardEvent) => fn(e.key);
+    // 사용자 설정 창이 열려 있으면 퀴즈 키를 받지 않는다
+    this.keyHandler = (e: KeyboardEvent) => !document.querySelector('.settings-panel') && fn(e.key);
     window.addEventListener('keydown', this.keyHandler);
   }
 

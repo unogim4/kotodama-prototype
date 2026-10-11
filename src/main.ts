@@ -6,6 +6,8 @@ import { LibraryScene } from './scenes/LibraryScene';
 import { WeaponSelectScene } from './scenes/WeaponSelectScene';
 import { RaidScene } from './scenes/RaidScene';
 import { BossScene } from './scenes/BossScene';
+import { SettingsPanel } from './ui/SettingsPanel';
+import { loadSettings } from './systems/settings';
 
 const game = new Phaser.Game({
   type: Phaser.AUTO,
@@ -20,6 +22,8 @@ const game = new Phaser.Game({
 });
 
 fitStage(game);
+loadSettings();
+new SettingsPanel(game);
 
 // 개발 중 콘솔에서 상태를 확인할 수 있도록 노출
 if (import.meta.env.DEV) (window as unknown as { game: Phaser.Game }).game = game;
